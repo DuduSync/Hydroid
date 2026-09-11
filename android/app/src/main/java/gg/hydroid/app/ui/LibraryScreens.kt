@@ -21,6 +21,8 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.SportsEsports
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,6 +31,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -42,7 +48,7 @@ import gg.hydroid.app.download.DownloadEngine
 import kotlinx.coroutines.launch
 
 // ===== DOACOES: quando o usuario mandar o link, colar aqui (ex.: ko-fi, pix, github sponsors) =====
-private const val DONATION_URL = ""
+private const val DONATION_URL = "https://nubank.com.br/cobrar/7rfap/6aa35e97-c27c-479b-b74b-dbd122db9877"
 
 private fun formatBytes(b: Long): String = when {
     b >= 1_073_741_824 -> "%.2f GB".format(b / 1_073_741_824.0)
@@ -257,6 +263,7 @@ fun SettingsScreen() {
     var sourceUrl by remember { mutableStateOf("") }
     var rdStatus by remember { mutableStateOf<String?>(null) }
     var rdOk by remember { mutableStateOf(false) }
+    var keyVisible by remember { mutableStateOf(false) }
     var checking by remember { mutableStateOf(false) }
     var addingSource by remember { mutableStateOf(false) }
     var sourceMsg by remember { mutableStateOf<String?>(null) }
@@ -279,6 +286,19 @@ fun SettingsScreen() {
                     placeholder = { Text("real-debrid.com/apitoken") },
                     singleLine = true,
                     shape = RoundedCornerShape(14.dp),
+                    visualTransformation = if (keyVisible) VisualTransformation.None
+                        else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    trailingIcon = {
+                        IconButton(onClick = { keyVisible = !keyVisible }) {
+                            Icon(
+                                if (keyVisible) Icons.Filled.VisibilityOff
+                                else Icons.Filled.Visibility,
+                                contentDescription = if (keyVisible) "Ocultar chave" else "Mostrar chave",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(12.dp))
@@ -442,7 +462,7 @@ fun SettingsScreen() {
                 ) {
                     Icon(Icons.Filled.Favorite, null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text(if (DONATION_URL.isNotBlank()) "Apoiar o projeto" else "Doações em breve")
+                    Text(if (DONATION_URL.isNotBlank()) "Apoiar com Pix" else "Doações em breve")
                 }
             }
         }
