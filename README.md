@@ -1,50 +1,73 @@
-<div align="center">
+# Hydroid
 
-[<img src="https://raw.githubusercontent.com/hydralauncher/hydra/refs/heads/main/resources/icon.png" width="144"/>](https://help.hydralauncher.gg)
+Port Android não-oficial do [Hydra Launcher](https://github.com/hydralauncher/hydra), em desenvolvimento. O Hydroid leva a experiência de biblioteca + catálogo + downloads do Hydra para o celular, em Kotlin nativo com Jetpack Compose.
 
-  <h1 align="center">Hydra Launcher</h1>
+> Projeto de estudo, sem afiliação com o Hydra Launcher. Licença MIT.
 
-  <p align="center">
-    <strong>Hydra Launcher is an open-source gaming platform created to be the single tool that you need in order to manage your gaming library. Hydra is written in Node.js (Electron, React, Typescript), Python, and Rust.</strong>
-  </p>
+## Status
 
-[![build](https://img.shields.io/github/actions/workflow/status/hydralauncher/hydra/build.yml)](https://github.com/hydralauncher/hydra/actions)
-[![release](https://img.shields.io/github/package-json/v/hydralauncher/hydra)](https://github.com/hydralauncher/hydra/releases)
-[![chocolatey](https://img.shields.io/chocolatey/v/hydralauncher.svg)](https://community.chocolatey.org/packages/hydralauncher)
+MVP funcional:
 
-![Hydra Launcher Home Page](./docs/screenshot.png)
+- Busca de jogos na Steam com capas e detalhes (PT-BR)
+- Fontes de download registradas via **Hydra Cloud** (o servidor do Hydra resolve as fontes atrás de Cloudflare)
+- Repacks por jogo com **método de download explícito**: `Real-Debrid`, `Direto` (links HTTP) e `Torrent` (em breve)
+- Downloads de torrent via **Real-Debrid**: magnet → cloud da RD → link direto → celular, com progresso e velocidade
+- Downloads diretos (sem RD) quando a fonte oferece link de arquivo real
+- Biblioteca local e histórico de downloads persistentes
+- Temas claro e escuro (Material 3)
 
-</div>
+## Como usar
 
-## Features
+1. Em **Ajustes**, configure sua chave da API do Real-Debrid ([real-debrid.com/apitoken](https://real-debrid.com/apitoken))
+2. Ainda em **Ajustes**, adicione fontes de download (URLs de catálogo `.json`, formato Hydra)
+3. Em **Catálogo**, busque um jogo e abra a página dele
+4. Escolha um repack e o método de download (`Real-Debrid` ou `Direto`)
+5. Acompanhe em **Downloads** — os arquivos ficam em `Android/data/gg.hydroid.app/files/Downloads`
 
-- Add games that you own to your library
-- Have a nice profile that shows what you are playing to your friends
-- Save your game progress in the cloud with Hydra Cloud
-- Unlock achievements
-- Navigate through a rich catalogue with a powerful suggestion algorithm
-- Discover new games that you haven't played before
+### Fontes de download
 
-## Build from source and contributing
+O formato é o mesmo do Hydra (`{ "name": "...", "downloads": [{ "title", "fileSize", "uris": [...], "uploadDate" }] }`).
+Veja a documentação oficial: [docs.hydralauncher.gg/download-sources](https://docs.hydralauncher.gg/download-sources)
 
-Please, refer to our Documentation pages: [docs.hydralauncher.gg](https://docs.hydralauncher.gg/getting-started)
+Fontes da comunidade podem ser encontradas em [library.hydra.wiki](https://library.hydra.wiki/). Fontes atrás de Cloudflare são registradas automaticamente pelo servidor do Hydra ao adicionar a URL.
 
-### Local development requirements
+## Compilando
 
-- Node.js + Yarn
-- Python 3.9+ with `pip install -r requirements.txt`
-- Rust toolchain (for `hydra-native`)
+Requisitos: JDK 17+ e Android SDK (API 34). O Gradle wrapper está incluído.
 
-After installing dependencies, `postinstall` now builds the Rust native addon automatically (`hydra-native/hydra-native.node`).
+```bash
+cd android
+echo "sdk.dir=/caminho/para/android-sdk" > local.properties   # ou defina ANDROID_HOME
+./gradlew assembleDebug
+```
 
-Packaging scripts (`yarn build:win`, `yarn build:mac`, `yarn build:linux`, `yarn build:unpack`) now run `yarn build:python-rpc` automatically.
+O APK sai em `android/app/build/outputs/apk/debug/app-debug.apk`.
 
-## Contributors
+## Arquitetura
 
-<a href="https://github.com/hydralauncher/hydra/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=hydralauncher/hydra" />
-</a>
+```
+android/app/src/main/java/gg/hydroid/app/
+├── MainActivity.kt       # navegação e tema
+├── data/
+│   ├── api/              # Steam, Hydra Cloud, Real-Debrid, fontes
+│   ├── model/            # modelos serializáveis
+│   └── store/            # persistência local (JSON)
+├── download/             # engine de download (RD e direto)
+└── ui/                   # telas Compose (Catálogo, Biblioteca, Downloads, Ajustes)
+```
 
-## License
+Fluxo de um download: busca na API pública da Steam → repacks do jogo via API do Hydra Cloud (mesmo endpoint do launcher desktop) → escolha do método → Real-Debrid processa o torrent no cloud e devolve um link direto → download para o aparelho.
 
-Hydra is licensed under the [MIT License](LICENSE).
+## Aviso legal
+
+O Hydroid não hospeda, indexa nem distribui nenhum conteúdo. As fontes de download são configuradas pelo próprio usuário e os downloads acontecem a partir delas. Baixe apenas conteúdo que você tem o direito de baixar. Marcas e jogos citados pertencem aos seus respectivos donos.
+
+## Créditos
+
+- [Hydra Launcher](https://github.com/hydralauncher/hydra) — projeto original (MIT), grande parte da lógica e das APIs vem dele
+- Port Android por [DuduSync](https://github.com/DuduSync)
+- Doações: _link em breve_
+
+## Licença
+
+[MIT](LICENSE)
