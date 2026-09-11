@@ -103,7 +103,20 @@ class RealDebridApi(private var apiKey: String) {
         }
         HttpClient.client.newCall(req).execute().use { resp ->
             val raw = resp.body?.string() ?: error("HTTP ${resp.code}")
-            if (!resp.isSuccessful) error("unrestrict falhou: $raw")
+            if (!resp.isSuccessful) {
+                val friendly = when {
+                    raw.contains("hoster_unsupported") ->
+                        "Hoster não suportado pela Real-Debrid — tente o método Direto ou outro repack"
+                    raw.contains("bad_token") || raw.contains("bad_credentials") ->
+                        "Chave Real-Debrid inválida — reconfigure em Ajustes"
+                    raw.contains("unavailable_file") ->
+                        "Arquivo indisponível no provedor"
+                    raw.contains("permission_denied") || raw.contains("account_locked") ->
+                        "Conta Real-Debrid sem permissão (premium?)"
+                    else -> "Real-Debrid: $raw"
+                }
+                error(friendly)
+            }
             JsonCfg.json.decodeFromString(raw)
         }
     }

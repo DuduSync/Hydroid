@@ -106,7 +106,8 @@ data class LibraryGame(
 data class ActiveDownload(
     val id: String,
     val title: String,
-    val stage: String = "resolvendo", // resolvendo | baixando | concluido | erro
+    val stage: String = "resolvendo", // resolvendo | cloud | baixando | concluido | erro
+    val method: String = "rd",        // rd | direto | torrent
     val progress: Float = 0f,
     val bytesDownloaded: Long = 0,
     val totalBytes: Long = 0,

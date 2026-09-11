@@ -29,7 +29,10 @@ object AppStore {
         appContext = context.applicationContext
         _sources.value = load<List<DownloadSource>>("sources.json") ?: emptyList()
         _library.value = load<List<LibraryGame>>("library.json") ?: emptyList()
-        _downloads.value = load<List<ActiveDownload>>("downloads.json") ?: emptyList()
+        // cards "cloud:*" de sessao anterior nao sobrevivem a restart (polling nao persiste)
+        val cleaned = (load<List<ActiveDownload>>("downloads.json") ?: emptyList())
+            .filterNot { it.stage.startsWith("cloud:") }
+        commit("downloads.json", cleaned, _downloads)
         _rdApiKey.value = load<String>("rdkey.json") ?: ""
     }
 
