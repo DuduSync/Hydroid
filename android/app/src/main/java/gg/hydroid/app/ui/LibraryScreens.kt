@@ -1,5 +1,7 @@
 package gg.hydroid.app.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*import androidx.compose.foundation.lazy.LazyColumn
@@ -17,6 +19,7 @@ import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Link
@@ -30,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -50,7 +54,7 @@ import kotlinx.coroutines.launch
 // ===== DOACOES: quando o usuario mandar o link, colar aqui (ex.: ko-fi, pix, github sponsors) =====
 private const val DONATION_URL = "https://nubank.com.br/cobrar/7rfap/6aa35e97-c27c-479b-b74b-dbd122db9877"
 
-private fun formatBytes(b: Long): String = when {
+internal fun formatBytes(b: Long): String = when {
     b >= 1_073_741_824 -> "%.2f GB".format(b / 1_073_741_824.0)
     b >= 1_048_576 -> "%.1f MB".format(b / 1_048_576.0)
     b >= 1024 -> "%.0f KB".format(b / 1024.0)
@@ -254,326 +258,3 @@ private fun DownloadCard(dl: ActiveDownload) {
 
 // ---------- Ajustes ----------
 
-@Composable
-fun SettingsScreen() {
-    val scope = rememberCoroutineScope()
-    val sources by AppStore.sources.collectAsState()
-    val rdKey by AppStore.rdApiKey.collectAsState()
-    var keyInput by remember(rdKey) { mutableStateOf(rdKey) }
-    var sourceUrl by remember { mutableStateOf("") }
-    var rdStatus by remember { mutableStateOf<String?>(null) }
-    var rdOk by remember { mutableStateOf(false) }
-    var keyVisible by remember { mutableStateOf(false) }
-    var checking by remember { mutableStateOf(false) }
-    var addingSource by remember { mutableStateOf(false) }
-    var sourceMsg by remember { mutableStateOf<String?>(null) }
-
-    LazyColumn(
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // ---- Real-Debrid ----
-        item {
-            SettingsSection(
-                icon = Icons.Filled.Key,
-                title = "Real-Debrid",
-                subtitle = "Downloads de torrent e hosters via cloud"
-            ) {
-                OutlinedTextField(
-                    value = keyInput,
-                    onValueChange = { keyInput = it },
-                    label = { Text("Chave da API") },
-                    placeholder = { Text("real-debrid.com/apitoken") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
-                    visualTransformation = if (keyVisible) VisualTransformation.None
-                        else PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    trailingIcon = {
-                        IconButton(onClick = { keyVisible = !keyVisible }) {
-                            Icon(
-                                if (keyVisible) Icons.Filled.VisibilityOff
-                                else Icons.Filled.Visibility,
-                                contentDescription = if (keyVisible) "Ocultar chave" else "Mostrar chave",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(12.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilledTonalButton(
-                        enabled = keyInput.isNotBlank() && !checking,
-                        onClick = {
-                            checking = true; rdStatus = null
-                            scope.launch {
-                                runCatching { RealDebridApi(keyInput.trim()).user() }
-                                    .onSuccess { user ->
-                                        AppStore.setRdKey(keyInput.trim())
-                                        rdOk = true
-                                        val premium = if (user.premium > 0)
-                                            "premium (${user.premium / 86400} dias)" else "sem premium"
-                                        rdStatus = "Conectado como ${user.username} — $premium"
-                                    }
-                                    .onFailure {
-                                        rdOk = false
-                                        rdStatus = "Falha: ${it.message}"
-                                    }
-                                checking = false
-                            }
-                        }
-                    ) { Text(if (checking) "Verificando..." else "Validar e salvar") }
-                    if (rdKey.isNotBlank()) {
-                        TextButton(onClick = {
-                            AppStore.setRdKey("")
-                            keyInput = ""
-                            rdStatus = "Chave removida"
-                            rdOk = false
-                        }) { Text("Remover") }
-                    }
-                }
-                rdStatus?.let {
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (rdOk) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error
-                    )
-                }
-            }
-        }
-
-        // ---- Fontes ----
-        item {
-            SettingsSection(
-                icon = Icons.Filled.Link,
-                title = "Fontes de download",
-                subtitle = "Registradas via servidor Hydra Cloud"
-            ) {
-                OutlinedTextField(
-                    value = sourceUrl,
-                    onValueChange = { sourceUrl = it },
-                    label = { Text("URL da fonte (.json)") },
-                    singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(12.dp))
-                FilledTonalButton(
-                    enabled = sourceUrl.isNotBlank() && !addingSource,
-                    onClick = {
-                        addingSource = true
-                        val url = sourceUrl.trim()
-                        scope.launch {
-                            val registered = HydraCloudApi.addRemoteSource(url)
-                            AppStore.addSource(
-                                registered ?: DownloadSource(
-                                    id = "local-${url.hashCode()}",
-                                    name = url.substringAfter("//").substringBefore('/'),
-                                    url = url,
-                                    createdAt = java.time.Instant.now().toString()
-                                )
-                            )
-                            sourceMsg = if (registered != null)
-                                "Fonte \"${registered.name}\" registrada"
-                            else "API do Hydra indisponível — salva localmente"
-                            sourceUrl = ""
-                            addingSource = false
-                        }
-                    }
-                ) { Text(if (addingSource) "Registrando..." else "Adicionar fonte") }
-                sourceMsg?.let {
-                    Spacer(Modifier.height(8.dp))
-                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
-                }
-            }
-        }
-
-        // ---- lista de fontes ----
-        if (sources.isNotEmpty()) {
-            items(sources, key = { it.id }) { source ->
-                SourceRow(source)
-            }
-        }
-
-        // ---- Créditos ----
-        item {
-            val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
-            SettingsSection(
-                icon = Icons.Filled.Favorite,
-                title = "Créditos",
-                subtitle = "Hydroid 0.3 · fork de estudo do Hydra Launcher (MIT)"
-            ) {
-                Text(
-                    "Port Android não-oficial. Downloads acontecem via suas fontes configuradas " +
-                        "e Real-Debrid. Este app não hospeda nem distribui conteúdo.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(14.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        "Desenvolvido por",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        "DuduSync",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.clickable {
-                            uriHandler.openUri("https://github.com/DuduSync")
-                        }
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    Box(
-                        Modifier
-                            .background(
-                                MaterialTheme.colorScheme.primaryContainer,
-                                RoundedCornerShape(8.dp)
-                            )
-                            .clickable { uriHandler.openUri("https://github.com/DuduSync/Hydroid") }
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Filled.Code, null,
-                                modifier = Modifier.size(14.dp),
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                            Spacer(Modifier.width(5.dp))
-                            Text(
-                                "Repositório",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        }
-                    }
-                }
-                Spacer(Modifier.height(14.dp))
-                Button(
-                    onClick = { if (DONATION_URL.isNotBlank()) uriHandler.openUri(DONATION_URL) },
-                    enabled = DONATION_URL.isNotBlank(),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Filled.Favorite, null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(if (DONATION_URL.isNotBlank()) "Apoiar com Pix" else "Doações em breve")
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SettingsSection(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    subtitle: String,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    ElevatedCard(
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
-        )
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    icon, null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(22.dp)
-                )
-                Spacer(Modifier.width(10.dp))
-                Column {
-                    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text(
-                        subtitle,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            Spacer(Modifier.height(14.dp))
-            content()
-        }
-    }
-}
-
-@Composable
-private fun SourceRow(source: DownloadSource) {
-    val isRemote = !source.id.startsWith("local-")
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-        ),
-        shape = RoundedCornerShape(14.dp)
-    ) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                Modifier
-                    .size(38.dp)
-                    .background(
-                        MaterialTheme.colorScheme.primaryContainer,
-                        RoundedCornerShape(10.dp)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    source.name.take(1).uppercase(),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    source.name,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    source.url,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            if (isRemote) {
-                Box(
-                    Modifier
-                        .background(
-                            MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f),
-                            RoundedCornerShape(6.dp)
-                        )
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        "Hydra",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.secondary,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                Spacer(Modifier.width(4.dp))
-            }
-            IconButton(onClick = { AppStore.removeSource(source.id) }) {
-                Icon(
-                    Icons.Filled.Delete, "Remover",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}

@@ -1,5 +1,7 @@
 package gg.hydroid.app.ui
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -25,6 +27,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -36,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import coil.compose.rememberAsyncImagePainter
 import gg.hydroid.app.data.api.HydraCloudApi
 import gg.hydroid.app.data.api.SourceFetcher
 import gg.hydroid.app.data.api.SteamApi
@@ -93,6 +97,7 @@ private fun steamHeader(appId: Long) =
 fun CatalogScreen(vm: CatalogViewModel = viewModel()) {
     val selected = vm.selectedGame
     if (selected != null) {
+        BackHandler { vm.closeGame() }
         GameDetailScreen(vm)
         return
     }
@@ -221,6 +226,7 @@ fun GameDetailScreen(vm: CatalogViewModel) {
     var descExpanded by remember { mutableStateOf(false) }
     var inLibrary by remember(game.id) { mutableStateOf(AppStore.isInLibrary(game.id)) }
     val rdKey by AppStore.rdApiKey.collectAsState()
+    var optionsFor by remember { mutableStateOf<DownloadSheet?>(null) }
 
     fun start(uri: String, method: DownloadMethod, title: String) {
         DownloadEngine.start(
@@ -243,46 +249,35 @@ fun GameDetailScreen(vm: CatalogViewModel) {
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0.dp),
         snackbarHost = { SnackbarHost(snackbar) }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())) {
 
-            // Hero
-            Box(Modifier.fillMaxWidth().height(280.dp)) {
-                if (vm.detailsLoading || details?.header_image == null) {
+            // Hero full-bleed no aspect ratio natural da arte
+            val heroUrl = details?.header_image ?: steamHeader(game.id)
+            val heroPainter = rememberAsyncImagePainter(model = heroUrl)
+            val intrinsic = heroPainter.intrinsicSize
+            val heroRatio =
+                if (intrinsic.isSpecified && intrinsic.height > 0f) intrinsic.width / intrinsic.height
+                else 460f / 215f
+            Box(Modifier.fillMaxWidth().aspectRatio(heroRatio)) {
+                if (vm.detailsLoading && details?.header_image == null) {
                     Box(
                         Modifier.fillMaxSize()
                             .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                         contentAlignment = Alignment.Center
                     ) { CircularProgressIndicator() }
                 }
-                AsyncImage(
-                    model = details?.header_image ?: steamHeader(game.id),
+                Image(
+                    painter = heroPainter,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
-                // scrim inferior -> fundo
-                Box(
-                    Modifier.fillMaxSize().background(
-                        Brush.verticalGradient(
-                            0.45f to Color.Transparent,
-                            1f to MaterialTheme.colorScheme.background
-                        )
-                    )
-                )
-                // scrim superior -> botoes
-                Box(
-                    Modifier.fillMaxWidth().height(96.dp).background(
-                        Brush.verticalGradient(
-                            0f to Color.Black.copy(alpha = 0.45f),
-                            1f to Color.Transparent
-                        )
-                    )
-                )
                 IconButton(
                     onClick = { vm.closeGame() },
-                    modifier = Modifier.padding(8.dp).size(40.dp)
+                    modifier = Modifier.align(Alignment.TopStart).statusBarsPadding().padding(6.dp)
                 ) {
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowBack, "Voltar",
@@ -301,12 +296,22 @@ fun GameDetailScreen(vm: CatalogViewModel) {
                         overflow = TextOverflow.Ellipsis
                     )
                     if (details?.genres?.isNotEmpty() == true) {
-                        Spacer(Modifier.height(6.dp))
-                        Text(
-                            details.genres.joinToString("  ·  ") { it.description },
-                            style = MaterialTheme.typography.labelLarge,
-                            color = Color.White.copy(alpha = 0.85f)
-                        )
+                        Spacer(Modifier.height(10.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            details.genres.take(4).forEach { g ->
+                                Box(
+                                    Modifier
+                                        .background(Color.White.copy(alpha = 0.14f), RoundedCornerShape(50))
+                                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        g.description,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -367,8 +372,13 @@ fun GameDetailScreen(vm: CatalogViewModel) {
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
             )
-            SourceRepackList(gameName = details?.name ?: game.name, appId = game.id) { uri, method, title ->
-                startChecked(uri, method, title)
+            SourceRepackList(gameName = details?.name ?: game.name, appId = game.id) { repack, sourceName ->
+                optionsFor = DownloadSheet(
+                    title = repack.title,
+                    fileSize = repack.fileSize,
+                    source = sourceName,
+                    uris = repack.uris
+                )
             }
 
             // Download manual
@@ -381,8 +391,14 @@ fun GameDetailScreen(vm: CatalogViewModel) {
             )
             ManualDownloadCard(
                 title = details?.name ?: game.name,
-                onRd = { uri, title -> startChecked(uri, DownloadMethod.RD, title) },
-                onDirect = { uri, title -> startChecked(uri, DownloadMethod.DIRETO, title) }
+                onShowOptions = { uri ->
+                    optionsFor = DownloadSheet(
+                        title = details?.name ?: game.name,
+                        fileSize = null,
+                        source = "Link manual",
+                        uris = listOf(uri)
+                    )
+                }
             )
 
             Spacer(Modifier.height(32.dp))
@@ -395,19 +411,153 @@ fun GameDetailScreen(vm: CatalogViewModel) {
             )
             Spacer(Modifier.height(32.dp))
         }
+
+        optionsFor?.let { sheet ->
+            ModalBottomSheet(
+                onDismissRequest = { optionsFor = null },
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
+            ) {
+                DownloadOptionsSheet(
+                    sheet = sheet,
+                    rdAvailable = rdKey.isNotBlank(),
+                    onPick = { uri, method ->
+                        optionsFor = null
+                        startChecked(uri, method, sheet.title)
+                    }
+                )
+            }
+        }
+    }
+}
+
+private data class DownloadSheet(
+    val title: String,
+    val fileSize: String?,
+    val source: String?,
+    val uris: List<String>
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DownloadOptionsSheet(
+    sheet: DownloadSheet,
+    rdAvailable: Boolean,
+    onPick: (String, DownloadMethod) -> Unit
+) {
+    val hasMagnet = sheet.uris.any { it.startsWith("magnet:") }
+    val hasHttp = sheet.uris.any { it.startsWith("http") }
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .padding(bottom = 36.dp)
+    ) {
+        Text(
+            "Baixar",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(sheet.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        val meta = listOfNotNull(sheet.fileSize, sheet.source).joinToString(" · ")
+        if (meta.isNotBlank()) {
+            Spacer(Modifier.height(2.dp))
+            Text(
+                meta,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Spacer(Modifier.height(18.dp))
+
+        DownloadMethodRow(
+            icon = Icons.Filled.CloudDownload,
+            title = "Real-Debrid",
+            subtitle = if (rdAvailable) "Processa no cloud e baixa em alta velocidade"
+            else "Configure a chave em Ajustes para usar",
+            enabled = rdAvailable
+        ) { onPick(sheet.uris.first(), DownloadMethod.RD) }
+
+        if (hasMagnet) {
+            DownloadMethodRow(
+                icon = Icons.Filled.SportsEsports,
+                title = "Torrent",
+                subtitle = "Baixa direto do swarm no aparelho"
+            ) { onPick(sheet.uris.first { it.startsWith("magnet:") }, DownloadMethod.TORRENT) }
+        }
+        if (hasHttp) {
+            DownloadMethodRow(
+                icon = Icons.Filled.Download,
+                title = "Direto",
+                subtitle = "Download HTTP sem precisar de conta"
+            ) { onPick(sheet.uris.first { it.startsWith("http") }, DownloadMethod.DIRETO) }
+        }
+    }
+}
+
+@Composable
+private fun DownloadMethodRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp)
+    ) {
+        Row(
+            Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                Modifier
+                    .size(42.dp)
+                    .background(
+                        if (enabled) MaterialTheme.colorScheme.primaryContainer
+                        else MaterialTheme.colorScheme.surfaceVariant,
+                        RoundedCornerShape(12.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    icon, null,
+                    tint = if (enabled) MaterialTheme.colorScheme.onPrimaryContainer
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = if (enabled) MaterialTheme.colorScheme.onSurface
+                    else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 
 @Composable
 private fun ManualDownloadCard(
     title: String,
-    onRd: (String, String) -> Unit,
-    onDirect: (String, String) -> Unit
+    onShowOptions: (String) -> Unit
 ) {
     var uri by remember { mutableStateOf("") }
-    var rdKeyMissing by remember { mutableStateOf(false) }
     val rdKey by AppStore.rdApiKey.collectAsState()
-    rdKeyMissing = rdKey.isBlank()
 
     ElevatedCard(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
@@ -427,34 +577,14 @@ private fun ManualDownloadCard(
                 shape = RoundedCornerShape(14.dp)
             )
             Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilledTonalButton(
-                    enabled = uri.isNotBlank(),
-                    onClick = {
-                        if (rdKeyMissing) return@FilledTonalButton
-                        onRd(uri.trim(), title)
-                    }
-                ) {
-                    Icon(Icons.Filled.CloudDownload, null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Real-Debrid")
-                }
-                OutlinedButton(
-                    enabled = uri.isNotBlank() && !uri.trim().startsWith("magnet:"),
-                    onClick = { onDirect(uri.trim(), title) }
-                ) {
-                    Icon(Icons.Filled.Download, null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Direto")
-                }
-            }
-            if (rdKeyMissing) {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    "Real-Debrid desativado: configure a chave em Ajustes",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.error
-                )
+            Button(
+                enabled = uri.isNotBlank(),
+                onClick = { onShowOptions(uri.trim()) },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Filled.Download, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Baixar")
             }
         }
     }
@@ -467,7 +597,7 @@ private fun normalizeTitle(t: String) =
 private fun SourceRepackList(
     gameName: String,
     appId: Long,
-    onStart: (String, DownloadMethod, String) -> Unit
+    onShowOptions: (GameRepack, String) -> Unit
 ) {
     val sources by AppStore.sources.collectAsState()
     val scope = rememberCoroutineScope()
@@ -537,7 +667,7 @@ private fun SourceRepackList(
         }
         else -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             repacks.forEach { (repack, sourceName) ->
-                RepackCard(repack, sourceName, onStart)
+                RepackCard(repack, sourceName, onShowOptions)
             }
         }
     }
@@ -547,11 +677,8 @@ private fun SourceRepackList(
 private fun RepackCard(
     repack: GameRepack,
     sourceName: String,
-    onStart: (String, DownloadMethod, String) -> Unit
+    onShowOptions: (GameRepack, String) -> Unit
 ) {
-    val hasMagnet = repack.uris.any { it.startsWith("magnet:") }
-    val hasHttp = repack.uris.any { it.startsWith("http") }
-    val rdKey by AppStore.rdApiKey.collectAsState()
 
     ElevatedCard(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
@@ -586,43 +713,13 @@ private fun RepackCard(
                 }
             }
             Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                // Real-Debrid pega qualquer uri (magnet via cloud, http via unrestrict)
-                FilledTonalButton(
-                    enabled = rdKey.isNotBlank(),
-                    onClick = { onStart(repack.uris.first(), DownloadMethod.RD, repack.title) }
-                ) {
-                    Icon(Icons.Filled.CloudDownload, null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Real-Debrid")
-                }
-                if (hasHttp) {
-                    OutlinedButton(
-                        onClick = {
-                            val http = repack.uris.first { it.startsWith("http") }
-                            onStart(http, DownloadMethod.DIRETO, repack.title)
-                        }
-                    ) {
-                        Icon(Icons.Filled.Download, null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Direto")
-                    }
-                }
-                if (hasMagnet) {
-                    OutlinedButton(onClick = {}, enabled = false) {
-                        Icon(Icons.Filled.SportsEsports, null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Torrent", maxLines = 1)
-                    }
-                }
-            }
-            if (hasMagnet && !hasHttp && rdKey.isBlank()) {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    "Configure a chave Real-Debrid em Ajustes para baixar este magnet",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.error
-                )
+            Button(
+                onClick = { onShowOptions(repack, sourceName) },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Filled.Download, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Baixar")
             }
         }
     }

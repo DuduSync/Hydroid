@@ -1,0 +1,235 @@
+package gg.hydroid.app.ui
+
+import android.Manifest
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.os.PowerManager
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BatteryAlert
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.SportsEsports
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import gg.hydroid.app.R
+
+private fun hasNotifPermission(context: Context): Boolean =
+    if (Build.VERSION.SDK_INT >= 33) {
+        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+    } else true
+
+private fun isIgnoringBattery(context: Context): Boolean =
+    context.getSystemService(PowerManager::class.java)
+        .isIgnoringBatteryOptimizations(context.packageName)
+
+private fun hasFileAccess(): Boolean =
+    if (Build.VERSION.SDK_INT >= 30) Environment.isExternalStorageManager() else true
+
+@Composable
+fun SetupScreen(onDone: () -> Unit) {
+    val context = LocalContext.current
+    var notifGranted by remember { mutableStateOf(hasNotifPermission(context)) }
+    var batteryOk by remember { mutableStateOf(isIgnoringBattery(context)) }
+    var fileAccess by remember { mutableStateOf(hasFileAccess()) }
+
+    val notifLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { notifGranted = hasNotifPermission(context) }
+
+    // re-checa ao voltar de uma tela de sistema (ex.: bateria)
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                notifGranted = hasNotifPermission(context)
+                batteryOk = isIgnoringBattery(context)
+                fileAccess = hasFileAccess()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(Modifier.height(40.dp))
+        Image(
+            painter = painterResource(R.mipmap.ic_launcher_foreground),
+            contentDescription = null,
+            modifier = Modifier.size(140.dp)
+        )
+        Spacer(Modifier.height(16.dp))
+        Text(
+            "Bem-vindo ao Hydroid",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.ExtraBold,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "Antes de começar, três ajustes importantes para os downloads funcionarem bem:",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 8.dp)
+        )
+        Spacer(Modifier.height(28.dp))
+
+        SetupStep(
+            icon = Icons.Filled.Notifications,
+            title = "Permitir notificações",
+            subtitle = "Mostra o progresso do download e avisa quando terminar",
+            done = notifGranted,
+            actionLabel = "Permitir",
+            onAction = {
+                if (Build.VERSION.SDK_INT >= 33) {
+                    notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                } else notifGranted = true
+            }
+        )
+        Spacer(Modifier.height(14.dp))
+        SetupStep(
+            icon = Icons.Filled.BatteryAlert,
+            title = "Desativar otimização de energia",
+            subtitle = "Sem isso o Android pode matar o download em segundo plano",
+            done = batteryOk,
+            actionLabel = "Abrir ajustes",
+            onAction = {
+                runCatching {
+                    context.startActivity(
+                        Intent(
+                            Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                            Uri.parse("package:${context.packageName}")
+                        )
+                    )
+                }
+            }
+        )
+        Spacer(Modifier.height(14.dp))
+        SetupStep(
+            icon = Icons.Filled.Folder,
+            title = "Acesso a arquivos",
+            subtitle = "Necessário para salvar, extrair e gerenciar os jogos baixados",
+            done = fileAccess,
+            actionLabel = "Permitir",
+            onAction = {
+                if (Build.VERSION.SDK_INT >= 30) {
+                    val intent = Intent(
+                        Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                        Uri.parse("package:${context.packageName}")
+                    )
+                    runCatching { context.startActivity(intent) }
+                        .onFailure {
+                            runCatching {
+                                context.startActivity(
+                                    Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                                )
+                            }
+                        }
+                } else fileAccess = true
+            }
+        )
+
+        Spacer(Modifier.height(36.dp))
+        Button(
+            onClick = onDone,
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Icon(Icons.Filled.SportsEsports, null, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(10.dp))
+            Text("Começar a usar", fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.height(12.dp))
+        Text(
+            "Você pode mudar isso depois nas configurações do Android",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun SetupStep(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    done: Boolean,
+    actionLabel: String,
+    onAction: () -> Unit
+) {
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        )
+    ) {
+        Row(
+            Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                Modifier
+                    .size(44.dp)
+                    .background(
+                        if (done) MaterialTheme.colorScheme.secondary.copy(alpha = 0.18f)
+                        else MaterialTheme.colorScheme.primaryContainer,
+                        RoundedCornerShape(12.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    if (done) Icons.Filled.Check else icon, null,
+                    tint = if (done) MaterialTheme.colorScheme.secondary
+                    else MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (!done) {
+                Spacer(Modifier.width(8.dp))
+                FilledTonalButton(onClick = onAction) { Text(actionLabel) }
+            }
+        }
+    }
+}

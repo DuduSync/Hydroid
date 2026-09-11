@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -13,14 +15,30 @@ android {
         applicationId = "gg.hydroid.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 4
+        versionName = "0.4"
+    }
+
+    signingConfigs {
+        create("release") {
+            val props = Properties()
+            val f = rootProject.file("local.properties")
+            if (f.exists()) props.load(f.inputStream())
+            val store = props.getProperty("RELEASE_STORE_FILE", "")
+            if (store.isNotBlank()) {
+                storeFile = file(store)
+                storePassword = props.getProperty("RELEASE_STORE_PASSWORD", "")
+                keyAlias = props.getProperty("RELEASE_KEY_ALIAS", "")
+                keyPassword = props.getProperty("RELEASE_KEY_PASSWORD", "")
+            }
+        }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = true
+            isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
@@ -47,5 +65,10 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    implementation("androidx.core:core-ktx:1.13.1")
+    implementation("org.libtorrent4j:libtorrent4j:2.1.0-39")
+    implementation("org.libtorrent4j:libtorrent4j-android-arm64:2.1.0-39")
+    implementation("org.libtorrent4j:libtorrent4j-android-x86_64:2.1.0-39")
+    implementation("com.github.junrar:junrar:8.1.1")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
