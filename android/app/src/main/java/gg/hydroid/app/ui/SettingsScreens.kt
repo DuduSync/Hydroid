@@ -9,18 +9,29 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.CardGiftcard
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Login
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -28,6 +39,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
@@ -38,10 +51,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.clickable
+import coil.compose.AsyncImage
+import gg.hydroid.app.data.api.DebridApis
+import gg.hydroid.app.data.api.HydraAccountApi
 import gg.hydroid.app.data.api.HydraCloudApi
 import gg.hydroid.app.data.api.RealDebridApi
 import gg.hydroid.app.data.log.AppLog
 import gg.hydroid.app.data.model.DownloadSource
+import gg.hydroid.app.data.model.HydraUser
 import gg.hydroid.app.data.store.AppStore
 import gg.hydroid.app.data.store.StorageUtil
 import kotlinx.coroutines.launch
@@ -49,7 +66,7 @@ import kotlinx.coroutines.launch
 // ===== DOACOES: link usado no botao "Apoiar com Pix" dos creditos =====
 private const val DONATION_URL = "https://nubank.com.br/cobrar/7rfap/6aa35e97-c27c-479b-b74b-dbd122db9877"
 
-private enum class SettingsPage { INTEGRACOES, FONTES, CONFIG, LOGS, CREDITOS }
+private enum class SettingsPage { CONTA, INTEGRACOES, FONTES, CONFIG, LOGS, CREDITOS }
 
 @Composable
 fun SettingsScreen() {
@@ -58,6 +75,7 @@ fun SettingsScreen() {
     Crossfade(targetState = page, animationSpec = tween(180), label = "settings") { current ->
         when (current) {
             null -> SettingsHome { page = it }
+            SettingsPage.CONTA -> AccountPage { page = null }
             SettingsPage.INTEGRACOES -> IntegracoesPage { page = null }
             SettingsPage.FONTES -> FontesPage { page = null }
             SettingsPage.CONFIG -> AppConfigPage { page = null }
@@ -77,6 +95,11 @@ private fun SettingsHome(onOpen: (SettingsPage) -> Unit) {
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        item {
+            val auth by AppStore.hydraAuth.collectAsState()
+            val user by AppStore.hydraUser.collectAsState()
+            AccountNavRow(loggedIn = auth != null, user = user) { onOpen(SettingsPage.CONTA) }
+        }
         item {
             NavRow(
                 Icons.Filled.Key, "Integrações",
@@ -106,6 +129,406 @@ private fun SettingsHome(onOpen: (SettingsPage) -> Unit) {
                 Icons.Filled.Favorite, "Créditos",
                 "Hydroid 0.4 · fork de estudo do Hydra (MIT)"
             ) { onOpen(SettingsPage.CREDITOS) }
+        }
+    }
+}
+
+@Composable
+private fun AccountNavRow(
+    loggedIn: Boolean,
+    user: HydraUser?,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (loggedIn && !user?.profileImageUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = user?.profileImageUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.size(42.dp).clip(CircleShape)
+                )
+            } else {
+                Box(
+                    Modifier
+                        .size(42.dp)
+                        .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Filled.Person, null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    if (loggedIn) (user?.displayName?.ifBlank { "Conta Hydra" } ?: "Conta Hydra")
+                    else "Entrar na conta Hydra",
+                    style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold
+                )
+                Text(
+                    if (loggedIn) (user?.email ?: "Conta conectada")
+                    else "Sincronize biblioteca e fontes",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight, null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+private suspend fun syncAccount(): String {
+    HydraAccountApi.profile()
+    val games = HydraAccountApi.syncLibrary()
+    val sources = HydraAccountApi.syncSources()
+    return if (sources < 0) {
+        "Sincronizado: +$games jogos. Fontes exigem Hydra Cloud ativo."
+    } else {
+        "Sincronizado: +$games jogos, +$sources fontes"
+    }
+}
+
+private fun visibilityLabel(value: String) = when (value) {
+    "PRIVATE" -> "Privado"
+    "FRIENDS" -> "Amigos"
+    else -> "Público"
+}
+
+@Composable
+private fun VisibilityRow(
+    label: String,
+    value: String,
+    onSelect: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.bodyMedium)
+        }
+        Box {
+            OutlinedButton(onClick = { expanded = true }) {
+                Text(visibilityLabel(value))
+                Icon(Icons.Filled.ArrowDropDown, null, modifier = Modifier.size(18.dp))
+            }
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                listOf("PUBLIC" to "Público", "FRIENDS" to "Amigos", "PRIVATE" to "Privado")
+                    .forEach { (v, l) ->
+                        DropdownMenuItem(
+                            text = { Text(l) },
+                            onClick = {
+                                expanded = false
+                                if (v != value) onSelect(v)
+                            }
+                        )
+                    }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccountPage(onBack: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    val uri = LocalUriHandler.current
+    val auth by AppStore.hydraAuth.collectAsState()
+    val user by AppStore.hydraUser.collectAsState()
+    val loggedIn = auth != null
+    var login by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var passVisible by remember { mutableStateOf(false) }
+    var loading by remember { mutableStateOf(false) }
+    var syncing by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var message by remember { mutableStateOf<String?>(null) }
+    var blocks by remember { mutableStateOf<Int?>(null) }
+
+    LaunchedEffect(auth?.accessToken) {
+        if (auth != null) {
+            runCatching { HydraAccountApi.profile() }
+            blocks = HydraAccountApi.blocksCount()
+        }
+    }
+
+    fun doSync() {
+        scope.launch {
+            syncing = true
+            message = null
+            message = syncAccount()
+            syncing = false
+        }
+    }
+
+    Column(Modifier.fillMaxSize()) {
+        Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar") }
+            Text("Conta Hydra", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        }
+        if (!loggedIn) {
+            Column(
+                Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    "Entre com a conta Hydra para sincronizar a biblioteca e os recursos vinculados a ela.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                OutlinedTextField(
+                    value = login,
+                    onValueChange = { login = it },
+                    label = { Text("Email ou usuário") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Senha") },
+                    singleLine = true,
+                    visualTransformation = if (passVisible) VisualTransformation.None
+                    else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        IconButton(onClick = { passVisible = !passVisible }) {
+                            Icon(
+                                if (passVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                "Mostrar senha"
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                error?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+                Button(
+                    onClick = {
+                        scope.launch {
+                            loading = true
+                            error = null
+                            val err = HydraAccountApi.signIn(login, password)
+                            loading = false
+                            if (err != null) error = err else {
+                                password = ""
+                                message = null
+                                doSync()
+                            }
+                        }
+                    },
+                    enabled = !loading && login.isNotBlank() && password.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (loading) {
+                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                    } else {
+                        Icon(Icons.Filled.Login, null, modifier = Modifier.size(18.dp))
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (loading) "Entrando..." else "Entrar")
+                }
+            }
+        } else {
+            Column(
+                Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                SettingsSection(Icons.Filled.Person, "Perfil", "Sua conta Hydra") {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (!user?.profileImageUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = user?.profileImageUrl,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.size(56.dp).clip(CircleShape)
+                            )
+                        } else {
+                            Box(
+                                Modifier
+                                    .size(56.dp)
+                                    .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Filled.Person, null,
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+                        Spacer(Modifier.width(14.dp))
+                        Column {
+                            Text(
+                                user?.displayName?.ifBlank { "Conta Hydra" } ?: "Conta Hydra",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                "@${user?.username ?: ""}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                user?.email ?: "",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                SettingsSection(Icons.Filled.Visibility, "Conta & Privacidade", "Quem pode ver seu perfil") {
+                    VisibilityRow("Visibilidade do perfil", user?.profileVisibility ?: "PUBLIC") { v ->
+                        scope.launch {
+                            if (HydraAccountApi.setVisibility(profile = v)) HydraAccountApi.profile()
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    VisibilityRow("Visibilidade das lembranças", user?.souvenirsVisibility ?: "PUBLIC") { v ->
+                        scope.launch {
+                            if (HydraAccountApi.setVisibility(souvenirs = v)) HydraAccountApi.profile()
+                        }
+                    }
+                }
+
+                SettingsSection(Icons.Filled.Cloud, "Hydra Cloud", "Assinatura") {
+                    val sub = user?.subscription
+                    val active = runCatching {
+                        sub?.expiresAt?.let { java.time.Instant.parse(it) > java.time.Instant.now() } ?: false
+                    }.getOrDefault(false)
+                    val date = sub?.expiresAt?.take(10)?.let {
+                        it.substring(8, 10) + "/" + it.substring(5, 7) + "/" + it.substring(0, 4)
+                    }
+                    Text(
+                        when {
+                            sub == null -> "Sem assinatura"
+                            active -> "Ativa até $date"
+                            else -> "Expirada em $date"
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (active) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    FilledTonalButton(
+                        onClick = {
+                            scope.launch {
+                                val url = HydraAccountApi.checkoutUrl()
+                                if (url != null) uri.openUri(url)
+                                else message = "Não foi possível abrir o checkout"
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Renovar Hydra Cloud") }
+                }
+
+                SettingsSection(Icons.Filled.CardGiftcard, "Presentes Hydra Cloud", "Receber presentes") {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                "Permitir que outros usuários me presenteiem",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                        Switch(
+                            checked = user?.allowCloudGifts ?: false,
+                            onCheckedChange = { v ->
+                                scope.launch {
+                                    if (HydraAccountApi.setAllowCloudGifts(v)) HydraAccountApi.profile()
+                                }
+                            }
+                        )
+                    }
+                }
+
+                SettingsSection(Icons.Filled.Block, "Usuários bloqueados", "Bloqueios da conta") {
+                    Text(
+                        when (blocks) {
+                            null -> "Carregando..."
+                            0 -> "Você não bloqueou nenhum usuário"
+                            1 -> "1 usuário bloqueado"
+                            else -> "$blocks usuários bloqueados"
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                SettingsSection(Icons.Filled.Lock, "Segurança", "Email e senha") {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = {
+                                auth?.accessToken?.let {
+                                    uri.openUri("https://auth.hydra.losbroxas.org/update-email?token=$it")
+                                }
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Filled.Email, null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Atualizar email", maxLines = 1)
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                auth?.accessToken?.let {
+                                    uri.openUri("https://auth.hydra.losbroxas.org/update-password?token=$it")
+                                }
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Filled.Lock, null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Atualizar senha", maxLines = 1)
+                        }
+                    }
+                }
+
+                SettingsSection(Icons.Filled.Refresh, "Sincronização", "Biblioteca e fontes da conta") {
+                    Text(
+                        "Baixa a biblioteca e as fontes de download vinculadas a sua conta Hydra.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    FilledTonalButton(
+                        onClick = { doSync() },
+                        enabled = !syncing,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        if (syncing) {
+                            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                        } else {
+                            Icon(Icons.Filled.Refresh, null, modifier = Modifier.size(18.dp))
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Text(if (syncing) "Sincronizando..." else "Sincronizar agora")
+                    }
+                    message?.let {
+                        Spacer(Modifier.height(8.dp))
+                        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        scope.launch {
+                            HydraAccountApi.logout()
+                            message = null
+                            blocks = null
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("Sair da conta") }
+            }
         }
     }
 }
@@ -196,7 +619,8 @@ private fun SettingsSection(
     ElevatedCard(
         colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer
-        )
+        ),
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -243,27 +667,93 @@ private fun SwitchRow(
 // ---------- Integrações ----------
 
 @OptIn(ExperimentalMaterial3Api::class)
+private enum class DebridService(val id: String, val label: String, val subtitle: String) {
+    REAL_DEBRID("rd", "Real-Debrid", "Torrents e hosters processados no cloud"),
+    PREMIUMIZE("premiumize", "Premiumize", "Cloud downloads com torrent e usenet"),
+    ALLDEBRID("alldebrid", "AllDebrid", "Downloads de torrents e hosters"),
+    TORBOX("torbox", "TorBox", "Downloads de torrents e hosters")
+}
+
 @Composable
 private fun IntegracoesPage(onBack: () -> Unit) {
-    val scope = rememberCoroutineScope()
+    var service by remember { mutableStateOf<DebridService?>(null) }
+    BackHandler(enabled = service != null) { service = null }
+    val current = service
+    if (current != null) {
+        DebridServicePage(current) { service = null }
+        return
+    }
     val rdKey by AppStore.rdApiKey.collectAsState()
-    var keyInput by remember(rdKey) { mutableStateOf(rdKey) }
+    val pmKey by AppStore.premiumizeKey.collectAsState()
+    val adKey by AppStore.alldebridKey.collectAsState()
+    val tbKey by AppStore.torboxKey.collectAsState()
+    SettingsPageScaffold("Integrações", onBack) {
+        Text(
+            "Serviços Debrid são downloaders premium de internet.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(4.dp))
+        NavRow(
+            Icons.Filled.CloudDownload, "Real-Debrid",
+            if (rdKey.isBlank()) "Não configurado" else "Conectado"
+        ) { service = DebridService.REAL_DEBRID }
+        NavRow(
+            Icons.Filled.Cloud, "Premiumize",
+            if (pmKey.isBlank()) "Não configurado" else "Conectado"
+        ) { service = DebridService.PREMIUMIZE }
+        NavRow(
+            Icons.Filled.Cloud, "AllDebrid",
+            if (adKey.isBlank()) "Não configurado" else "Conectado"
+        ) { service = DebridService.ALLDEBRID }
+        NavRow(
+            Icons.Filled.Cloud, "TorBox",
+            if (tbKey.isBlank()) "Não configurado" else "Conectado"
+        ) { service = DebridService.TORBOX }
+    }
+}
+
+@Composable
+private fun DebridServicePage(service: DebridService, onBack: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    val keyFlow = when (service) {
+        DebridService.REAL_DEBRID -> AppStore.rdApiKey
+        DebridService.PREMIUMIZE -> AppStore.premiumizeKey
+        DebridService.ALLDEBRID -> AppStore.alldebridKey
+        DebridService.TORBOX -> AppStore.torboxKey
+    }
+    val savedKey by keyFlow.collectAsState()
+    var keyInput by remember(savedKey) { mutableStateOf(savedKey) }
     var keyVisible by remember { mutableStateOf(false) }
-    var rdStatus by remember { mutableStateOf<String?>(null) }
-    var rdOk by remember { mutableStateOf(false) }
+    var status by remember { mutableStateOf<String?>(null) }
+    var ok by remember { mutableStateOf(false) }
     var checking by remember { mutableStateOf(false) }
 
-    SettingsPageScaffold("Integrações", onBack) {
+    fun save(k: String) = when (service) {
+        DebridService.REAL_DEBRID -> AppStore.setRdKey(k)
+        DebridService.PREMIUMIZE -> AppStore.setPremiumizeKey(k)
+        DebridService.ALLDEBRID -> AppStore.setAlldebridKey(k)
+        DebridService.TORBOX -> AppStore.setTorboxKey(k)
+    }
+
+    val placeholder = when (service) {
+        DebridService.REAL_DEBRID -> "real-debrid.com/apitoken"
+        DebridService.PREMIUMIZE -> "premiumize.me/account"
+        DebridService.ALLDEBRID -> "alldebrid.com/apikeys"
+        DebridService.TORBOX -> "torbox.app/settings"
+    }
+
+    SettingsPageScaffold(service.label, onBack) {
         SettingsSection(
             icon = Icons.Filled.Key,
-            title = "Real-Debrid",
-            subtitle = "Downloads de torrent e hosters via cloud"
+            title = service.label,
+            subtitle = service.subtitle
         ) {
             OutlinedTextField(
                 value = keyInput,
                 onValueChange = { keyInput = it },
                 label = { Text("Chave da API") },
-                placeholder = { Text("real-debrid.com/apitoken") },
+                placeholder = { Text(placeholder) },
                 singleLine = true,
                 shape = RoundedCornerShape(14.dp),
                 visualTransformation = if (keyVisible) VisualTransformation.None
@@ -285,43 +775,42 @@ private fun IntegracoesPage(onBack: () -> Unit) {
                 enabled = keyInput.isNotBlank() && !checking,
                 modifier = Modifier.fillMaxWidth(),
                 onClick = {
-                    checking = true; rdStatus = null
+                    checking = true
+                    status = null
                     scope.launch {
-                        runCatching { RealDebridApi(keyInput.trim()).user() }
-                            .onSuccess { user ->
-                                AppStore.setRdKey(keyInput.trim())
-                                rdOk = true
-                                val premium = if (user.premium > 0)
-                                    "premium (${user.premium / 86400} dias)" else "sem premium"
-                                rdStatus = "Conectado como ${user.username} — $premium"
-                                AppLog.i("RD", "chave validada: ${user.username} ($premium)")
+                        runCatching { DebridApis.validate(service.id, keyInput.trim()) }
+                            .onSuccess {
+                                save(keyInput.trim())
+                                ok = true
+                                status = it
+                                AppLog.i("Debrid", "${service.id} validado: $it")
                             }
                             .onFailure {
-                                rdOk = false
-                                rdStatus = "Falha: ${it.message}"
-                                AppLog.w("RD", "validação falhou: ${it.message}")
+                                ok = false
+                                status = "Falha: ${it.message}"
+                                AppLog.w("Debrid", "${service.id} falhou: ${it.message}")
                             }
                         checking = false
                     }
                 }
             ) { Text(if (checking) "Verificando..." else "Validar e salvar") }
-            if (rdKey.isNotBlank()) {
+            if (savedKey.isNotBlank()) {
                 TextButton(
                     onClick = {
-                        AppStore.setRdKey("")
+                        save("")
                         keyInput = ""
-                        rdStatus = "Chave removida"
-                        rdOk = false
+                        status = "Chave removida"
+                        ok = false
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("Remover chave") }
             }
-            rdStatus?.let {
+            status?.let {
                 Spacer(Modifier.height(8.dp))
                 Text(
                     it,
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (rdOk) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error
+                    color = if (ok) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error
                 )
             }
         }

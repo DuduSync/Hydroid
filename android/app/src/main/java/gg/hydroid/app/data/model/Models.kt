@@ -115,3 +115,53 @@ data class ActiveDownload(
     val error: String? = null,
     val savePath: String? = null
 )
+
+@Serializable
+data class HydraAuth(
+    val accessToken: String = "",
+    val refreshToken: String = "",
+    val expiration: Long = 0L
+)
+
+@Serializable
+data class HydraUser(
+    val id: String = "",
+    val username: String = "",
+    val displayName: String = "",
+    val email: String? = null,
+    val profileImageUrl: String? = null,
+    val backgroundImageUrl: String? = null,
+    val bio: String = "",
+    val profileVisibility: String = "PUBLIC",
+    val souvenirsVisibility: String = "PUBLIC",
+    val allowCloudGifts: Boolean = true,
+    val hasPassword: Boolean = true,
+    val subscription: HydraSubscription? = null
+)
+
+@Serializable
+data class HydraSubscription(
+    val status: String = "",
+    val expiresAt: String? = null,
+    val plan: HydraPlan? = null
+)
+
+@Serializable
+data class HydraPlan(val type: String = "")
+
+@Serializable
+data class HydraRemoteGame(
+    val id: String = "",
+    val objectId: String = "0",
+    val shop: String = "",
+    val title: String = "",
+    val coverImageUrl: String? = null,
+    val libraryImageUrl: String? = null
+)
+
+@Serializable
+data class HydraRemoteSource(
+    val id: String = "",
+    val name: String? = null,
+    val url: String = ""
+)

@@ -31,6 +31,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -85,6 +86,15 @@ private fun HydroidRoot() {
     val detailOpen = catalogVm.selectedGame != null
     val context = LocalContext.current
     var lastBackMs by remember { mutableLongStateOf(0L) }
+    var originTab by remember { mutableIntStateOf(-1) }
+
+    // ao fechar a pagina do jogo, volta para a aba de origem (ex.: Biblioteca)
+    LaunchedEffect(detailOpen) {
+        if (!detailOpen && originTab >= 0) {
+            selected = originTab
+            originTab = -1
+        }
+    }
 
     // fecha so com dois toques no voltar (detalhe/subpaginas tem prioridade via LIFO)
     BackHandler {
@@ -139,7 +149,11 @@ private fun HydroidRoot() {
         ) { tab ->
             Box(Modifier.fillMaxSize().padding(innerPadding)) {
                 when (tab) {
-                    0 -> LibraryScreen()
+                    0 -> LibraryScreen(onOpenGame = { game ->
+                        originTab = 0
+                        catalogVm.openFromLibrary(game)
+                        selected = 1
+                    })
                     1 -> CatalogScreen()
                     2 -> DownloadsScreen()
                     3 -> SettingsScreen()

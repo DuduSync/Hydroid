@@ -25,6 +25,15 @@ object AppStore {
     private val _rdApiKey = MutableStateFlow("")
     val rdApiKey: StateFlow<String> = _rdApiKey
 
+    private val _premiumizeKey = MutableStateFlow("")
+    val premiumizeKey: StateFlow<String> = _premiumizeKey
+
+    private val _alldebridKey = MutableStateFlow("")
+    val alldebridKey: StateFlow<String> = _alldebridKey
+
+    private val _torboxKey = MutableStateFlow("")
+    val torboxKey: StateFlow<String> = _torboxKey
+
     private val _setupDone = MutableStateFlow(false)
     val setupDone: StateFlow<Boolean> = _setupDone
 
@@ -37,6 +46,12 @@ object AppStore {
     private val _downloadDir = MutableStateFlow("")
     val downloadDir: StateFlow<String> = _downloadDir
 
+    private val _hydraAuth = MutableStateFlow<HydraAuth?>(null)
+    val hydraAuth: StateFlow<HydraAuth?> = _hydraAuth
+
+    private val _hydraUser = MutableStateFlow<HydraUser?>(null)
+    val hydraUser: StateFlow<HydraUser?> = _hydraUser
+
     fun init(context: Context) {
         dir = File(context.filesDir, "hydroid").apply { mkdirs() }
         appContext = context.applicationContext
@@ -48,6 +63,11 @@ object AppStore {
             .filter { it.stage in terminal }
         commit("downloads.json", cleaned, _downloads)
         _rdApiKey.value = load<String>("rdkey.json") ?: ""
+        _premiumizeKey.value = load<String>("premiumize.json") ?: ""
+        _alldebridKey.value = load<String>("alldebrid.json") ?: ""
+        _torboxKey.value = load<String>("torbox.json") ?: ""
+        _hydraAuth.value = load<HydraAuth>("hydraauth.json")
+        _hydraUser.value = load<HydraUser>("hydrauser.json")
         val prefs = load<Prefs>("prefs.json") ?: Prefs()
         _setupDone.value = prefs.setupDone
         _autoExtract.value = prefs.autoExtract
@@ -119,6 +139,38 @@ object AppStore {
     fun setRdKey(key: String) {
         _rdApiKey.value = key.trim()
         save("rdkey.json", key.trim())
+    }
+
+    fun setPremiumizeKey(key: String) {
+        _premiumizeKey.value = key.trim()
+        save("premiumize.json", key.trim())
+    }
+
+    fun setAlldebridKey(key: String) {
+        _alldebridKey.value = key.trim()
+        save("alldebrid.json", key.trim())
+    }
+
+    fun setTorboxKey(key: String) {
+        _torboxKey.value = key.trim()
+        save("torbox.json", key.trim())
+    }
+
+    fun saveHydraAuth(auth: HydraAuth) {
+        _hydraAuth.value = auth
+        save("hydraauth.json", auth)
+    }
+
+    fun saveHydraUser(user: HydraUser) {
+        _hydraUser.value = user
+        save("hydrauser.json", user)
+    }
+
+    fun clearHydraAuth() {
+        _hydraAuth.value = null
+        _hydraUser.value = null
+        File(dir, "hydraauth.json").delete()
+        File(dir, "hydrauser.json").delete()
     }
 
     fun upsertDownload(dl: ActiveDownload) {

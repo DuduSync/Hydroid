@@ -85,6 +85,10 @@ class CatalogViewModel : ViewModel() {
         }
     }
 
+    fun openFromLibrary(lib: LibraryGame) {
+        openGame(SteamSearchItem(name = lib.name, id = lib.appId))
+    }
+
     fun closeGame() { selectedGame = null }
 }
 

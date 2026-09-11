@@ -64,7 +64,7 @@ internal fun formatBytes(b: Long): String = when {
 // ---------- Biblioteca ----------
 
 @Composable
-fun LibraryScreen() {
+fun LibraryScreen(onOpenGame: (LibraryGame) -> Unit = {}) {
     val games by AppStore.library.collectAsState()
     if (games.isEmpty()) {
         Column(
@@ -95,14 +95,15 @@ fun LibraryScreen() {
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         items(games, key = { it.appId }) { game: LibraryGame ->
-            LibraryCard(game)
+            LibraryCard(game) { onOpenGame(game) }
         }
     }
 }
 
 @Composable
-private fun LibraryCard(game: LibraryGame) {
+private fun LibraryCard(game: LibraryGame, onClick: () -> Unit) {
     Card(
+        onClick = onClick,
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer
