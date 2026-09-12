@@ -37,6 +37,22 @@ fun localized(base: Context): Context {
 
 private val EN = mapOf<String, String>(
     "%d downloads disponíveis" to "%d downloads available",
+    "%d downloads em andamento" to "%d downloads in progress",
+    "%s: acesso recusado (conteúdo privado/expirado?) — tente Real-Debrid" to
+        "%s: access denied (private/expired content?) — try Real-Debrid",
+    "%s: arquivo não encontrado ou apagado" to "%s: file not found or deleted",
+    "%s: limite de requisições, espere alguns minutos" to "%s: rate limited, wait a few minutes",
+    "%s: link direto não encontrado" to "%s: direct link not found",
+    "%s: link inválido" to "%s: invalid link",
+    "%s: não consegui desbloquear (link expirado ou recurso da conta)" to
+        "%s: could not unlock (expired link or account feature)",
+    "%s: não consegui resolver o link" to "%s: could not resolve the link",
+    "%s: precisa da conta Hydra (Ajustes > Conta) ou Real-Debrid" to
+        "%s: requires the Hydra account (Settings > Account) or Real-Debrid",
+    "1fichier exige conta premium (use Real-Debrid/TorBox)" to
+        "1fichier requires a premium account (use Real-Debrid/TorBox)",
+    "MEGA não é suportado no direto (use Real-Debrid/TorBox)" to
+        "MEGA is not supported for direct downloads (use Real-Debrid/TorBox)",
     "1 usuário bloqueado" to "1 blocked user",
     "API do Hydra indisponível — salva localmente" to "Hydra API unavailable — saved locally",
     "Abrir ajustes" to "Open settings",

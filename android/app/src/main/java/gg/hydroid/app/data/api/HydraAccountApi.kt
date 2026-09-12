@@ -81,6 +81,25 @@ object HydraAccountApi {
         }.getOrDefault(false)
     }
 
+    // resolve links de hosters no servidor do Hydra (datanodes, vikingfile...) — precisa de conta
+    suspend fun unlockHoster(path: String, url: String): String? = withContext(Dispatchers.IO) {
+        refreshIfNeeded()
+        val token = AppStore.hydraAuth.value?.accessToken ?: return@withContext null
+        runCatching {
+            val body = buildJsonObject { put("url", url) }.toString().toRequestBody(JsonCfg.mediaType)
+            val req = Request.Builder().url("$API$path").post(body)
+                .header("User-Agent", UA)
+                .header("Authorization", "Bearer $token")
+                .build()
+            HttpClient.client.newCall(req).execute().use { resp ->
+                val text = resp.body?.string().orEmpty()
+                AppLog.i("Hoster", "unlock $path -> ${resp.code}")
+                if (!resp.isSuccessful) return@runCatching null
+                json.parseToJsonElement(text).jsonObject["link"]?.jsonPrimitive?.content
+            }
+        }.onFailure { AppLog.w("Hoster", "unlock $path falhou: ${it.message}") }.getOrNull()
+    }
+
     suspend fun setVisibility(profile: String? = null, souvenirs: String? = null): Boolean {
         val body = buildJsonObject {
             profile?.let { put("profileVisibility", it) }

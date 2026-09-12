@@ -31,13 +31,11 @@ object RepackFinder {
             HydraCloudApi.repacks("steam", appId.toString(), hydraIds)
                 .forEach { found += it to it.downloadSourceName }
         }
-        val target = normalizeTitle(gameName)
         for (source in localSources.take(3)) {
             runCatching {
                 val catalog = SourceFetcher.fetch(source.url, AppStore.appContext)
                 catalog?.downloads?.forEach { repack ->
-                    val rp = normalizeTitle(repack.title)
-                    if (rp.contains(target) || target.contains(rp.take(20))) {
+                    if (matches(gameName, repack.title)) {
                         found += GameRepack(
                             id = "local-${repack.title.hashCode()}",
                             title = repack.title,
@@ -89,6 +87,33 @@ object RepackFinder {
             }
     }
 
-    private fun normalizeTitle(t: String) =
-        t.lowercase().replace(Regex("[^a-z0-9]"), "").trim()
+    // ---- casamento de titulo (fontes locais) ----    // "Watch Dogs" NAO pode casar com "Watch Dogs 2"/"Legion"; "The Witcher 3" casa com
+    // "The Witcher 3: Wild Hunt"; "Watch Dogs" casa com "Watch Dogs Complete Edition"
+
+    private val EDITION_WORDS = setOf(
+        "complete", "completa", "definitive", "definitiva", "deluxe", "ultimate", "gold", "goty",
+        "game", "of", "the", "year", "edition", "edicao", "enhanced", "remastered", "remaster",
+        "collection", "anthology", "trilogy", "bundle", "premium", "legendary", "anniversary",
+        "final", "cut", "standard", "legacy", "classic", "classics", "plus", "and", "e"
+    )
+    private val ROMAN = setOf("i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x")
+
+    private fun tokens(s: String): List<String> =
+        s.lowercase().replace(Regex("[^a-z0-9]+"), " ").trim().split(" ").filter { it.isNotBlank() }
+
+    // nome do jogo = parte antes do primeiro "(" ou "[" — o resto e versao/repack
+    private fun namePart(title: String): String =
+        title.substringBefore('(').substringBefore('[').trim()
+
+    private fun matches(game: String, repackTitle: String): Boolean {
+        val g = tokens(namePart(game).ifBlank { game })
+        val r = tokens(namePart(repackTitle).ifBlank { repackTitle })
+        if (g.isEmpty() || r.isEmpty()) return false
+        val common = minOf(g.size, r.size)
+        if (g.take(common) != r.take(common)) return false
+        // extras do jogo (subtitulo) ok; numero/romano = jogo diferente
+        if (g.drop(common).any { it.toIntOrNull() != null || it in ROMAN }) return false
+        // extras do repack: so palavras de edicao (2, Legion, etc. barram aqui)
+        return r.drop(common).all { it in EDITION_WORDS }
+    }
 }

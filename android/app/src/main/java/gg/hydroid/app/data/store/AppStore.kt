@@ -311,12 +311,19 @@ object AppStore {
 
     fun upsertDownload(dl: ActiveDownload) {
         // preserva a uri original (magnet/hoster) entre posts de progresso
-        val prev = _downloads.value.firstOrNull { it.id == dl.id }
+        val current = _downloads.value
+        val prev = current.firstOrNull { it.id == dl.id }
         val merged = if (dl.uri == null && prev?.uri != null) dl.copy(uri = prev.uri) else dl
-        val updated = _downloads.value
-            .filter { it.id != merged.id }
-            .sortedByDescending { it.progress < 1f } // ativos primeiro
-            .let { listOf(merged) + it.filter { x -> x.id != merged.id } }
+        fun isActive(d: ActiveDownload) = d.stage !in setOf("concluido", "erro")
+        val idx = current.indexOfFirst { it.id == merged.id }
+        val updated: List<ActiveDownload> = when {
+            idx < 0 -> listOf(merged) + current                    // novo: entra no topo
+            isActive(merged) == (prev != null && isActive(prev)) ->
+                // mudou so o progresso: fica NA MESMA posicao (nada de card pulando)
+                current.toMutableList().also { it[idx] = merged }
+            isActive(merged) -> listOf(merged) + current.filter { it.id != merged.id }  // retomou
+            else -> current.filter { it.id != merged.id } + merged                      // terminou
+        }
         commit("downloads.json", updated.take(30), _downloads)
     }
 

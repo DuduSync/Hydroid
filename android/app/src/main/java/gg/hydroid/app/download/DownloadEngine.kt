@@ -146,6 +146,7 @@ object DownloadEngine {
                     DownloadMethod.PREMIUMIZE -> DebridClouds.premiumize(debridKey!!, uri)
                     DownloadMethod.ALLDEBRID -> DebridClouds.alldebrid(debridKey!!, uri)
                     DownloadMethod.TORBOX -> DebridClouds.torbox(debridKey!!, uri)
+                    DownloadMethod.DIRETO -> resolveDirect(uri)
                     else -> uri
                 }
                 downloadFile(context, id, title, directUrl, methodTag)
@@ -355,31 +356,16 @@ object DownloadEngine {
         }
     }
 
-    // notificacao: mostra o download ativo; para quando nao ha mais nenhum
+    // notificacao: quem desenha e o DownloadService (observa a lista); aqui so garante que ele roda
     fun notifyService(dl: ActiveDownload) {
         refreshNotification()
-        if (dl.stage == "extraindo") {
-            DownloadService.update(AppStore.appContext, dl.title, tr("Extraindo..."), 100, true)
-        }
     }
 
-    // recalcula a notificacao a partir da lista atual (chamar depois de remover cards)
+    // sobe/derruba o servico conforme existem downloads ativos
     fun refreshNotification() {
         val context = AppStore.appContext
-        val active = AppStore.downloads.value.filter {
-            it.stage !in listOf("concluido", "erro")
-        }
-        if (active.isEmpty()) {
-            DownloadService.stop(context)
-        } else {
-            val first = active.first()
-            val text = when (first.stage) {
-                "baixando" -> "${formatSpeed(first.speedBps)} · ${formatBytes(first.bytesDownloaded)} de ${formatBytes(first.totalBytes)}"
-                else -> first.stage.replaceFirstChar { it.uppercase() }
-            }
-            DownloadService.update(context, first.title, text, (first.progress * 100).toInt(),
-                first.stage != "baixando")
-        }
+        val hasActive = AppStore.downloads.value.any { it.stage !in listOf("concluido", "erro") }
+        if (hasActive) DownloadService.ensureRunning(context) else DownloadService.stop(context)
     }
 
     private fun removeCloudCard(id: String) {
@@ -414,6 +400,25 @@ object DownloadEngine {
         return rd.unrestrictLink(uri).download
     }
 
+    // links de hosters (gofile, pixeldrain, mediafire...) viram um link direto de arquivo
+    private suspend fun resolveDirect(uri: String): String {
+        AppLog.i("Hoster", "resolvendo direto: ${uri.take(100)}")
+        val start = System.currentTimeMillis()
+        return when (val r = HostResolver.resolve(uri)) {
+            is HostResolver.Result.Ok -> {
+                if (r.url != uri) {
+                    AppLog.i("Hoster",
+                        "${r.host}: resolvido em ${System.currentTimeMillis() - start}ms -> ${r.url.take(100)}")
+                }
+                r.url
+            }
+            is HostResolver.Result.Fail -> {
+                AppLog.w("Hoster", "${r.host}: ${r.message}")
+                error(r.message)
+            }
+        }
+    }
+
     private suspend fun downloadFile(
         context: Context, id: String, title: String, url: String, methodTag: String
     ) {
@@ -423,6 +428,7 @@ object DownloadEngine {
             fun open(startAt: Long): okhttp3.Response {
                 val rq = Request.Builder().url(url)
                 if (startAt > 0) rq.header("Range", "bytes=$startAt-")
+                rq.header("User-Agent", HostResolver.BROWSER_UA)
                 return HttpClient.client.newCall(rq.build()).execute()
             }
             var startAt = if (outFile.exists()) outFile.length() else 0L
@@ -538,12 +544,12 @@ object DownloadEngine {
         else -> "serviço debrid"
     }
 
-    private fun formatBytes(b: Long): String = when {
+    internal fun formatBytes(b: Long): String = when {
         b >= 1_073_741_824 -> "%.2f GB".format(b / 1_073_741_824.0)
         b >= 1_048_576 -> "%.1f MB".format(b / 1_048_576.0)
         b >= 1024 -> "%.0f KB".format(b / 1024.0)
         else -> "$b B"
     }
 
-    private fun formatSpeed(bps: Long) = "${formatBytes(bps)}/s"
+    internal fun formatSpeed(bps: Long) = "${formatBytes(bps)}/s"
 }

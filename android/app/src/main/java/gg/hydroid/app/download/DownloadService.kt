@@ -1,25 +1,38 @@
 package gg.hydroid.app.download
 
 import gg.hydroid.app.data.i18n.tr
-
+import gg.hydroid.app.data.i18n.tf
 
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import gg.hydroid.app.MainActivity
 import gg.hydroid.app.data.log.AppLog
+import gg.hydroid.app.data.model.ActiveDownload
+import gg.hydroid.app.data.store.AppStore
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
-// foreground service: mantem o processo vivo durante downloads e mostra o progresso
+// foreground service: mantem o processo vivo durante downloads.
+// notificacao resumo (foreground) + UMA notificacao por download ativo (2+ simultaneos)
 class DownloadService : Service() {
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val posted = mutableSetOf<Int>()
 
     companion object {
         private const val CHANNEL_ID = "downloads"
-        private const val NOTIF_ID = 42
+        private const val SUMMARY_ID = 42
         @Volatile private var running = false
 
         fun ensureChannel(context: Context) {
@@ -38,17 +51,12 @@ class DownloadService : Service() {
             }
         }
 
-        fun update(context: Context, title: String, text: String, percent: Int, indeterminate: Boolean) {
-            ensureChannel(context)
-            AppLog.i("Service", "notificacao: $title | $text | $percent%${if (indeterminate) " (indeterminada)" else ""}")
-            val intent = Intent(context, DownloadService::class.java).apply {
-                putExtra("title", title)
-                putExtra("text", text)
-                putExtra("percent", percent)
-                putExtra("indeterminate", indeterminate)
-            }
-            ContextCompat.startForegroundService(context, intent)
+        // sobe o servico (idempotente); o conteudo das notificacoes vem do proprio service
+        fun ensureRunning(context: Context) {
+            if (running) return
             running = true
+            AppLog.i("Service", "iniciando foreground service de downloads")
+            ContextCompat.startForegroundService(context, Intent(context, DownloadService::class.java))
         }
 
         fun stop(context: Context) {
@@ -57,30 +65,110 @@ class DownloadService : Service() {
             if (wasRunning) AppLog.i("Service", "parando notificacao (sem downloads ativos)")
             context.stopService(Intent(context, DownloadService::class.java))
         }
+
+        private fun notifId(dlId: String) = 1000 + (dlId.hashCode() and 0x7fffffff) % 1_000_000
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val title = intent?.getStringExtra("title") ?: "Hydroid"
-        val text = intent?.getStringExtra("text") ?: ""
-        val percent = intent?.getIntExtra("percent", 0) ?: 0
-        val indeterminate = intent?.getBooleanExtra("indeterminate", true) ?: true
-
-        val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.stat_sys_download)
-            .setContentTitle(title)
-            .setContentText(text)
-            .setOnlyAlertOnce(true)
-            .setOngoing(true)
-            .setSilent(true)
-            .apply {
-                if (indeterminate) setProgress(0, 0, true)
-                else setProgress(100, percent.coerceIn(0, 100), false)
+        ensureChannel(this)
+        startForeground(SUMMARY_ID, buildSummary(emptyList()))
+        scope.launch {
+            AppStore.downloads.collect { list ->
+                val active = list.filter { it.stage !in listOf("concluido", "erro") }
+                if (active.isEmpty()) {
+                    clearIndividual()
+                    stopSelf()
+                } else {
+                    render(active)
+                }
             }
-            .build()
-
-        startForeground(NOTIF_ID, notification)
+        }
         return START_NOT_STICKY
     }
 
+    override fun onDestroy() {
+        scope.cancel()
+        clearIndividual()
+        super.onDestroy()
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
+
+    // resumo sempre; notificacao individual so quando tem 2+ (com 1 seria duplicado)
+    private fun render(active: List<ActiveDownload>) {
+        val mgr = getSystemService(NotificationManager::class.java) ?: return
+        mgr.notify(SUMMARY_ID, buildSummary(active))
+        if (active.size < 2) {
+            clearIndividual()
+            return
+        }
+        val current = active.map { notifId(it.id) }.toSet()
+        posted.filter { it !in current }.forEach { mgr.cancel(it) }
+        posted.retainAll(current)
+        active.forEach { dl ->
+            val id = notifId(dl.id)
+            posted.add(id)
+            mgr.notify(id, buildDownload(dl))
+            AppLog.i("Service", "notificacao [${dl.id}]: ${dl.title} | ${textOf(dl)} | ${(dl.progress * 100).toInt()}%")
+        }
+    }
+
+    private fun clearIndividual() {
+        val mgr = getSystemService(NotificationManager::class.java)
+        posted.forEach { mgr.cancel(it) }
+        posted.clear()
+    }
+
+    private fun textOf(dl: ActiveDownload): String = when (dl.stage) {
+        "baixando" -> "${DownloadEngine.formatSpeed(dl.speedBps)} · " +
+            "${DownloadEngine.formatBytes(dl.bytesDownloaded)} de ${DownloadEngine.formatBytes(dl.totalBytes)}"
+        else -> dl.stage.replaceFirstChar { it.uppercase() }
+    }
+
+    private fun openAppIntent(): PendingIntent {
+        val i = Intent(this, MainActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        }
+        return PendingIntent.getActivity(
+            this, 0, i,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    private fun baseBuilder(): NotificationCompat.Builder = NotificationCompat.Builder(this, CHANNEL_ID)
+        .setSmallIcon(android.R.drawable.stat_sys_download)
+        .setContentIntent(openAppIntent())
+        .setOnlyAlertOnce(true)
+        .setOngoing(true)
+        .setSilent(true)
+
+    private fun buildSummary(active: List<ActiveDownload>): Notification {
+        val one = active.firstOrNull()
+        val text = when {
+            one == null -> tr("Preparando...")
+            active.size == 1 -> textOf(one)
+            else -> tf("%d downloads em andamento", active.size)
+        }
+        val builder = baseBuilder()
+            .setContentTitle(if (active.size > 1) tr("Downloads") else one?.title ?: "Hydroid")
+            .setContentText(text)
+        if (one != null && active.size == 1 && one.stage == "baixando") {
+            builder.setProgress(100, (one.progress * 100).toInt().coerceIn(0, 100), false)
+        } else {
+            builder.setProgress(0, 0, true)
+        }
+        return builder.build()
+    }
+
+    private fun buildDownload(dl: ActiveDownload): Notification {
+        val builder = baseBuilder()
+            .setContentTitle(dl.title)
+            .setContentText(textOf(dl))
+        if (dl.stage == "baixando") {
+            builder.setProgress(100, (dl.progress * 100).toInt().coerceIn(0, 100), false)
+        } else {
+            builder.setProgress(0, 0, true)
+        }
+        return builder.build()
+    }
 }

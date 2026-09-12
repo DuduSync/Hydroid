@@ -5,6 +5,7 @@ import gg.hydroid.app.data.i18n.tr
 
 import gg.hydroid.app.data.api.HttpClient
 import gg.hydroid.app.data.api.JsonCfg
+import gg.hydroid.app.data.log.AppLog
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -159,11 +160,12 @@ object DebridClouds {
             val torrentId = created["data"]?.jsonObject?.get("torrent_id")?.jsonPrimitive?.intOrNull
                 ?: error(tr("TorBox sem torrent_id"))
             repeat(180) {
-                val list = json.parseToJsonElement(
+                val item = torboxFirstItem(
                     http("$api/torrents/mylist?bypass_cache=true&id=$torrentId", headers = auth)
-                ).jsonObject
-                val item = list["data"]?.jsonArray?.firstOrNull()?.jsonObject
-                when (item?.get("download_state")?.jsonPrimitive?.content) {
+                )
+                val state = item?.get("download_state")?.jsonPrimitive?.content
+                AppLog.i("Debrid", "torbox torrent $torrentId: $state")
+                when (state) {
                     "completed", "uploading", "cached" -> {
                         val fileId = biggestFileId(item)
                         return requestDl("$api/torrents/requestdl?token=$key&torrent_id=$torrentId&file_id=$fileId")
@@ -187,11 +189,12 @@ object DebridClouds {
         val webId = created["data"]?.jsonObject?.get("webdownload_id")?.jsonPrimitive?.intOrNull
             ?: error(tr("TorBox sem webdownload_id"))
         repeat(180) {
-            val list = json.parseToJsonElement(
+            val item = torboxFirstItem(
                 http("$api/webdl/mylist?bypass_cache=true&id=$webId", headers = auth)
-            ).jsonObject
-            val item = list["data"]?.jsonArray?.firstOrNull()?.jsonObject
-            when (item?.get("download_state")?.jsonPrimitive?.content) {
+            )
+            val state = item?.get("download_state")?.jsonPrimitive?.content
+            AppLog.i("Debrid", "torbox webdl $webId: $state")
+            when (state) {
                 "completed", "uploading", "cached" -> {
                     val fileId = biggestFileId(item)
                     return requestDl("$api/webdl/requestdl?token=$key&web_id=$webId&file_id=$fileId")
@@ -203,10 +206,26 @@ object DebridClouds {
         error(tr("Timeout aguardando o TorBox"))
     }
 
-    private fun biggestFileId(item: JsonObject): Int = item["files"]?.jsonArray
-        ?.map { it.jsonObject }
-        ?.maxByOrNull { it["size"]?.jsonPrimitive?.longOrNull ?: 0L }
-        ?.get("id")?.jsonPrimitive?.intOrNull ?: 0
+    // TorBox as vezes devolve "data" como objeto em vez de array (e "files" tambem) — aceita os dois
+    private fun torboxFirstItem(raw: String): JsonObject? = runCatching {
+        when (val data = json.parseToJsonElement(raw).jsonObject["data"]) {
+            is JsonArray -> data.firstOrNull()?.jsonObject
+            is JsonObject -> data
+            else -> null
+        }
+    }.onFailure {
+        AppLog.w("Debrid", "torbox resposta inesperada: ${raw.take(200)}")
+    }.getOrNull()
+
+    private fun biggestFileId(item: JsonObject?): Int {
+        val files = when (val f = item?.get("files")) {
+            is JsonArray -> f.mapNotNull { runCatching { it.jsonObject }.getOrNull() }
+            is JsonObject -> listOf(f)
+            else -> emptyList()
+        }
+        return files.maxByOrNull { it["size"]?.jsonPrimitive?.longOrNull ?: 0L }
+            ?.get("id")?.jsonPrimitive?.intOrNull ?: 0
+    }
 
     private fun requestDl(url: String): String {
         val res = json.parseToJsonElement(http(url)).jsonObject
