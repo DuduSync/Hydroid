@@ -1,12 +1,14 @@
 package gg.hydroid.app.ui
 
 import gg.hydroid.app.data.i18n.tr
+import gg.hydroid.app.data.i18n.tf
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -34,6 +36,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -43,6 +46,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
 import gg.hydroid.app.data.api.HydraCloudApi
+import gg.hydroid.app.data.api.ProtonDbApi
 import gg.hydroid.app.data.api.SourceFetcher
 import gg.hydroid.app.data.api.SteamApi
 import gg.hydroid.app.data.model.*
@@ -50,6 +54,9 @@ import gg.hydroid.app.data.store.AppStore
 import gg.hydroid.app.download.DownloadEngine
 import gg.hydroid.app.download.DownloadMethod
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 
 // ---------- VM ----------
 
@@ -236,6 +243,15 @@ fun GameDetailScreen(vm: CatalogViewModel) {
     val alldebridKey by AppStore.alldebridKey.collectAsState()
     val torboxKey by AppStore.torboxKey.collectAsState()
     var optionsFor by remember { mutableStateOf<DownloadSheet?>(null) }
+    var sourcesOpen by remember { mutableStateOf(false) }
+
+    // dados extras da pagina do jogo (HLTB e ProtonDB)
+    var hltb by remember(game.id) { mutableStateOf<List<HltbEntry>?>(null) }
+    var proton by remember(game.id) { mutableStateOf<ProtonTier?>(null) }
+    LaunchedEffect(game.id) {
+        hltb = HydraCloudApi.howLongToBeat(game.id)
+        proton = ProtonDbApi.tier(game.id)
+    }
 
     fun start(uri: String, method: DownloadMethod, title: String) {
         DownloadEngine.start(
@@ -373,20 +389,22 @@ fun GameDetailScreen(vm: CatalogViewModel) {
                 }
             }
 
-            // Downloads disponíveis
-            Spacer(Modifier.height(8.dp))
-            Text(
-                tr("Downloads disponíveis"),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-            )
-            SourceRepackList(gameName = details?.name ?: game.name, appId = game.id) { repack, sourceName ->
-                optionsFor = DownloadSheet(
-                    title = repack.title,
-                    fileSize = repack.fileSize,
-                    source = sourceName,
-                    uris = repack.uris
+            // Botao unico de download: abre o popup com todas as fontes
+            Spacer(Modifier.height(16.dp))
+            Button(
+                onClick = { sourcesOpen = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .height(52.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Icon(Icons.Filled.Download, null, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    tr("Baixar"),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
                 )
             }
 
@@ -409,6 +427,171 @@ fun GameDetailScreen(vm: CatalogViewModel) {
                     )
                 }
             )
+
+            // Sobre (metadados)
+            details?.let { d ->
+                val meta = buildList {
+                    d.developers.takeIf { it.isNotEmpty() }
+                        ?.let { add(tr("Desenvolvedora") to it.joinToString(", ")) }
+                    d.publishers.takeIf { it.isNotEmpty() }
+                        ?.let { add(tr("Publicadora") to it.joinToString(", ")) }
+                    d.release_date?.date?.takeIf { it.isNotBlank() }
+                        ?.let { add(tr("Lançamento") to it) }
+                }
+                val hasMeta = meta.isNotEmpty() ||
+                    (d.metacritic?.score ?: 0) > 0 ||
+                    (d.recommendations?.total ?: 0) > 0
+                if (hasMeta) {
+                    GameInfoSection(tr("Sobre")) {
+                        meta.forEach { (k, v) -> InfoRow(k, v) }
+                        d.metacritic?.takeIf { it.score > 0 }?.let { m ->
+                            Row(
+                                Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    "Metacritic",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.width(110.dp)
+                                )
+                                Box(
+                                    Modifier
+                                        .background(metacriticColor(m.score), RoundedCornerShape(6.dp))
+                                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        m.score.toString(),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.Black
+                                    )
+                                }
+                            }
+                        }
+                        (d.recommendations?.total ?: 0).takeIf { it > 0 }?.let { total ->
+                            InfoRow(tr("Recomendações"), "%,d".format(total))
+                        }
+                    }
+                }
+            }
+
+            // How long to beat
+            hltb?.takeIf { it.isNotEmpty() }?.let { list ->
+                GameInfoSection(tr("How long to beat")) {
+                    list.forEach { e -> InfoRow(hltbTitle(e.title), e.duration) }
+                }
+            }
+
+            // Galeria
+            details?.screenshots?.takeIf { it.isNotEmpty() }?.let { shots ->
+                var fullShot by remember { mutableStateOf<String?>(null) }
+                GameInfoSection(tr("Galeria")) {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(shots.size) { i ->
+                            val s = shots[i]
+                            AsyncImage(
+                                model = s.path_thumbnail,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .size(width = 160.dp, height = 90.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { fullShot = s.path_full }
+                            )
+                        }
+                    }
+                }
+                fullShot?.let { url ->
+                    AlertDialog(
+                        onDismissRequest = { fullShot = null },
+                        confirmButton = {},
+                        text = {
+                            AsyncImage(
+                                model = url,
+                                contentDescription = null,
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { fullShot = null }
+                            )
+                        }
+                    )
+                }
+            }
+
+            // Requisitos (colapsavel)
+            details?.pc_requirements?.let { req ->
+                val reqs = parsePcRequirements(req)
+                if (reqs != null && (reqs.first != null || reqs.second != null)) {
+                    var reqExpanded by remember { mutableStateOf(false) }
+                    GameInfoSection(tr("Requisitos")) {
+                        TextButton(onClick = { reqExpanded = !reqExpanded }) {
+                            Text(if (reqExpanded) tr("Ocultar requisitos") else tr("Mostrar requisitos"))
+                        }
+                        if (reqExpanded) {
+                            reqs.first?.takeIf { it.isNotBlank() }?.let {
+                                Text(
+                                    tr("Mínimos"),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    stripHtml(it),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(Modifier.height(12.dp))
+                            }
+                            reqs.second?.takeIf { it.isNotBlank() }?.let {
+                                Text(
+                                    tr("Recomendados"),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    stripHtml(it),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ProtonDB
+            proton?.let { p ->
+                val uriHandler = LocalUriHandler.current
+                GameInfoSection(tr("ProtonDB")) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            Modifier
+                                .background(protonColor(p.tier), RoundedCornerShape(6.dp))
+                                .padding(horizontal = 10.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                p.tier.replaceFirstChar { it.uppercase() },
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Black
+                            )
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            tf("%s relatos", p.total),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    TextButton(onClick = { uriHandler.openUri("https://www.protondb.com/app/${game.id}") }) {
+                        Text(tr("Ver no ProtonDB"))
+                    }
+                }
+            }
 
             Spacer(Modifier.height(32.dp))
             Text(
@@ -437,6 +620,40 @@ fun GameDetailScreen(vm: CatalogViewModel) {
                         startChecked(uri, method, sheet.title)
                     }
                 )
+            }
+        }
+
+        if (sourcesOpen) {
+            ModalBottomSheet(
+                onDismissRequest = { sourcesOpen = false },
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
+            ) {
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(bottom = 24.dp)
+                ) {
+                    Text(
+                        tr("Fontes de download"),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    SourceRepackList(
+                        gameName = details?.name ?: game.name,
+                        appId = game.id
+                    ) { repack, sourceName ->
+                        sourcesOpen = false
+                        optionsFor = DownloadSheet(
+                            title = repack.title,
+                            fileSize = repack.fileSize,
+                            source = sourceName,
+                            uris = repack.uris
+                        )
+                    }
+                }
             }
         }
     }
@@ -770,4 +987,76 @@ private fun RepackCard(
             }
         }
     }
+}
+
+// ---------- secoes extras da pagina do jogo ----------
+
+@Composable
+private fun GameInfoSection(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Spacer(Modifier.height(20.dp))
+    Text(
+        title,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+    )
+    Spacer(Modifier.height(4.dp))
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        )
+    ) {
+        Column(Modifier.padding(14.dp), content = content)
+    }
+}
+
+@Composable
+private fun InfoRow(label: String, value: String) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(110.dp)
+        )
+        Text(value, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
+    }
+}
+
+private fun hltbTitle(title: String): String = when (title) {
+    "Main Story" -> tr("História principal")
+    "Main + Sides" -> tr("História + extras")
+    "Completionist" -> tr("Completista")
+    else -> title
+}
+
+private fun metacriticColor(score: Int) = when {
+    score >= 75 -> Color(0xFF66CC33)
+    score >= 50 -> Color(0xFFFFCC33)
+    else -> Color(0xFFFF687D)
+}
+
+private fun protonColor(tier: String) = when (tier.lowercase()) {
+    "platinum" -> Color(0xFFB4C7DC)
+    "gold" -> Color(0xFFF4C430)
+    "silver" -> Color(0xFFA6A6A6)
+    "bronze" -> Color(0xFFCD7F32)
+    "borked" -> Color(0xFFE06666)
+    else -> Color(0xFFCCCCCC)
+}
+
+private fun stripHtml(s: String): String = s
+    .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
+    .replace(Regex("<[^>]*>"), "")
+    .replace("&amp;", "&").replace("&quot;", "\"").replace("&#39;", "'")
+    .replace("&lt;", "<").replace("&gt;", ">")
+    .trim()
+
+private fun parsePcRequirements(el: kotlinx.serialization.json.JsonElement): Pair<String?, String?>? {
+    val obj = el as? JsonObject ?: return null
+    val min = (obj["minimum"] as? JsonPrimitive)?.contentOrNull
+    val rec = (obj["recommended"] as? JsonPrimitive)?.contentOrNull
+    if (min.isNullOrBlank() && rec.isNullOrBlank()) return null
+    return min to rec
 }

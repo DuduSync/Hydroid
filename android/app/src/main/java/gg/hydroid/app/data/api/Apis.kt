@@ -57,6 +57,21 @@ object SteamApi {
     data class SteamAppDetailsWrapper(val success: Boolean = false, val data: SteamAppDetails? = null)
 }
 
+object ProtonDbApi {
+    // tier de compatibilidade (platinum/gold/silver/bronze) — endpoint publico do site
+    suspend fun tier(appId: Long): ProtonTier? = withContext(Dispatchers.IO) {
+        runCatching {
+            val req = HttpClient.get("https://www.protondb.com/api/v1/reports/summaries/$appId.json") {
+                header("User-Agent", "Mozilla/5.0 (Linux; Android 14)")
+            }
+            HttpClient.client.newCall(req).execute().use { resp ->
+                if (!resp.isSuccessful) error("HTTP ${resp.code}")
+                JsonCfg.json.decodeFromString<ProtonTier>(resp.body?.string().orEmpty())
+            }
+        }.onFailure { android.util.Log.e("HydroidApi", "protondb: ${it.message}") }.getOrNull()
+    }
+}
+
 class RealDebridApi(private var apiKey: String) {
     private val base = "https://api.real-debrid.com/rest/1.0"
 

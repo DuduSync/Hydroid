@@ -58,6 +58,13 @@ object AppStore {
     private val _language = MutableStateFlow("")
     val language: StateFlow<String> = _language
 
+    private val _collections = MutableStateFlow<List<GameCollection>>(emptyList())
+    val collections: StateFlow<List<GameCollection>> = _collections
+
+    // jogo pedido por atalho da tela inicial
+    private val _pendingOpenGame = MutableStateFlow<Long?>(null)
+    val pendingOpenGame: StateFlow<Long?> = _pendingOpenGame
+
     private val _hydraAuth = MutableStateFlow<HydraAuth?>(null)
     val hydraAuth: StateFlow<HydraAuth?> = _hydraAuth
 
@@ -69,6 +76,7 @@ object AppStore {
         appContext = context.applicationContext
         _sources.value = load<List<DownloadSource>>("sources.json") ?: emptyList()
         _library.value = load<List<LibraryGame>>("library.json") ?: emptyList()
+        _collections.value = load<List<GameCollection>>("collections.json") ?: emptyList()
         // terminais e pausados sobrevivem a restart (pausado pode continuar depois)
         val terminal = setOf("concluido", "erro", "pausado")
         val cleaned = (load<List<ActiveDownload>>("downloads.json") ?: emptyList())
@@ -180,6 +188,42 @@ object AppStore {
     )
 
     fun isInLibrary(appId: Long) = _library.value.any { it.appId == appId }
+
+    fun toggleFavorite(appId: Long) = commit(
+        "library.json",
+        _library.value.map { if (it.appId == appId) it.copy(favorite = !it.favorite) else it },
+        _library
+    )
+
+    fun setGameCollections(appId: Long, collectionIds: List<String>) = commit(
+        "library.json",
+        _library.value.map { if (it.appId == appId) it.copy(collectionIds = collectionIds) else it },
+        _library
+    )
+
+    fun addCollection(name: String): GameCollection {
+        val col = GameCollection(id = java.util.UUID.randomUUID().toString(), name = name.trim())
+        commit("collections.json", _collections.value + col, _collections)
+        return col
+    }
+
+    fun renameCollection(id: String, name: String) = commit(
+        "collections.json",
+        _collections.value.map { if (it.id == id) it.copy(name = name.trim()) else it },
+        _collections
+    )
+
+    fun removeCollection(id: String) {
+        commit("collections.json", _collections.value.filter { it.id != id }, _collections)
+        commit(
+            "library.json",
+            _library.value.map { it.copy(collectionIds = it.collectionIds - id) },
+            _library
+        )
+    }
+
+    fun openGameFromShortcut(appId: Long) { _pendingOpenGame.value = appId }
+    fun consumePendingOpenGame() { _pendingOpenGame.value = null }
 
     fun setRdKey(key: String) {
         _rdApiKey.value = key.trim()

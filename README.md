@@ -8,6 +8,7 @@
   <img src="https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Kotlin + Jetpack Compose"/>
   <img src="https://img.shields.io/github/v/release/DuduSync/Hydroid?style=flat-square&color=5EEAD4&label=release" alt="Release"/>
   <a href="https://hits.sh/github.com/DuduSync/Hydroid/"><img src="https://hits.sh/github.com/DuduSync/Hydroid.svg?label=visualiza%C3%A7%C3%B5es&logo=github&color=5EEAD4&style=flat-square" alt="Visualizações"/></a>
+  <a href="https://github.com/DuduSync/Hydroid/releases"><img src="https://img.shields.io/github/downloads/DuduSync/Hydroid/total?style=flat-square&color=8B93FF&label=downloads" alt="Downloads"/></a>
 </p>
 
 <p align="center">
@@ -19,7 +20,7 @@
 
 APK universal assinado (arm64 + x86_64):
 
-➡️ [**Hydroid v0.7 — Releases**](https://github.com/DuduSync/Hydroid/releases/latest)
+➡️ [**Hydroid v0.8 — Releases**](https://github.com/DuduSync/Hydroid/releases/latest)
 
 ## Funcionalidades
 

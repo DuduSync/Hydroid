@@ -2,6 +2,7 @@ package gg.hydroid.app.data.api
 
 import gg.hydroid.app.data.model.DownloadSource
 import gg.hydroid.app.data.model.GameRepack
+import gg.hydroid.app.data.model.HltbEntry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
@@ -61,5 +62,20 @@ object HydraCloudApi {
     suspend fun addRemoteSource(url: String): DownloadSource? {
         val registered = registerSource(url) ?: return null
         return registered
+    }
+
+    // HowLongToBeat via API do Hydra (sem auth, mesmo dado do desktop)
+    suspend fun howLongToBeat(appId: Long): List<HltbEntry> = withContext(Dispatchers.IO) {
+        runCatching {
+            val req = Request.Builder()
+                .url("$BASE/games/steam/$appId/how-long-to-beat")
+                .header("User-Agent", UA)
+                .build()
+            HttpClient.client.newCall(req).execute().use { resp ->
+                if (!resp.isSuccessful) error("HTTP ${resp.code}")
+                JsonCfg.json.decodeFromString<List<HltbEntry>>(resp.body?.string().orEmpty())
+            }
+        }.onFailure { android.util.Log.e("HydroidApi", "hltb: ${it.message}") }
+            .getOrDefault(emptyList())
     }
 }

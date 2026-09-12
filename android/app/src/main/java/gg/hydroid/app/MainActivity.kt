@@ -3,6 +3,7 @@ package gg.hydroid.app
 import gg.hydroid.app.data.i18n.tr
 
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -57,7 +58,6 @@ import gg.hydroid.app.ui.SettingsScreen
 import gg.hydroid.app.ui.SetupScreen
 import gg.hydroid.app.ui.theme.HydroidTheme
 
-@ExperimentalMaterial3Api
 class MainActivity : ComponentActivity() {
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(gg.hydroid.app.data.i18n.localized(newBase))
@@ -65,6 +65,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        handleOpenIntent(intent)
         enableEdgeToEdge()
         setContent {
             HydroidTheme {
@@ -75,6 +76,18 @@ class MainActivity : ComponentActivity() {
                 else HydroidRoot()
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleOpenIntent(intent)
+    }
+
+    // atalho da tela inicial: gg.hydroid.app.OPEN_GAME com appId do jogo
+    private fun handleOpenIntent(intent: Intent?) {
+        val appId = intent?.getLongExtra("appId", -1L) ?: -1L
+        if (appId > 0) AppStore.openGameFromShortcut(appId)
     }
 }
 
@@ -98,6 +111,18 @@ private fun HydroidRoot() {
     val context = LocalContext.current
     var lastBackMs by remember { mutableLongStateOf(0L) }
     var originTab by remember { mutableIntStateOf(-1) }
+
+    // abre o jogo pedido por atalho da tela inicial
+    val pendingGame by AppStore.pendingOpenGame.collectAsState()
+    LaunchedEffect(pendingGame) {
+        val id = pendingGame ?: return@LaunchedEffect
+        AppStore.consumePendingOpenGame()
+        val game = AppStore.library.value.firstOrNull { it.appId == id }
+        catalogVm.openGame(
+            gg.hydroid.app.data.model.SteamSearchItem(name = game?.name ?: "", id = id)
+        )
+        selected = 1
+    }
 
     // ao fechar a pagina do jogo, volta para a aba de origem (ex.: Biblioteca)
     LaunchedEffect(detailOpen) {

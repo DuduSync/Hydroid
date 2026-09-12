@@ -32,7 +32,41 @@ data class SteamAppDetails(
     val release_date: SteamReleaseDate? = null,
     val developers: List<String> = emptyList(),
     val publishers: List<String> = emptyList(),
-    val genres: List<SteamGenre> = emptyList()
+    val genres: List<SteamGenre> = emptyList(),
+    val screenshots: List<SteamScreenshot> = emptyList(),
+    val metacritic: SteamMetacritic? = null,
+    val recommendations: SteamRecommendations? = null,
+    val pc_requirements: kotlinx.serialization.json.JsonElement? = null,
+    val website: String? = null
+)
+
+@Serializable
+data class SteamScreenshot(
+    val id: Long = 0,
+    val path_thumbnail: String = "",
+    val path_full: String = ""
+)
+
+@Serializable
+data class SteamMetacritic(val score: Int = 0, val url: String = "")
+
+@Serializable
+data class SteamRecommendations(val total: Int = 0)
+
+@Serializable
+data class HltbEntry(
+    val title: String = "",
+    val duration: String = "",
+    val accuracy: String? = null
+)
+
+@Serializable
+data class ProtonTier(
+    val tier: String = "",
+    val bestReportedTier: String = "",
+    val confidence: String = "",
+    val score: Double = 0.0,
+    val total: Int = 0
 )
 
 @Serializable
@@ -99,7 +133,16 @@ data class LibraryGame(
     val appId: Long,
     val name: String,
     val headerImage: String = "",
-    val addedAt: Long = System.currentTimeMillis()
+    val addedAt: Long = System.currentTimeMillis(),
+    val favorite: Boolean = false,
+    val collectionIds: List<String> = emptyList()
+)
+
+@Serializable
+data class GameCollection(
+    val id: String,
+    val name: String,
+    val createdAt: Long = System.currentTimeMillis()
 )
 
 @Serializable
