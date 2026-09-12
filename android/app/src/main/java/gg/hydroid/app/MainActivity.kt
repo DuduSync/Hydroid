@@ -71,6 +71,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -98,6 +99,7 @@ import gg.hydroid.app.ui.LibraryScreen
 import gg.hydroid.app.ui.SettingsScreen
 import gg.hydroid.app.ui.SetupScreen
 import gg.hydroid.app.ui.theme.HydroidTheme
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun attachBaseContext(newBase: Context) {
@@ -150,28 +152,18 @@ private val tabs: List<Tab>
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HydroidRoot() {
-    var selected by rememberSaveable { mutableIntStateOf(AppStore.startTab.value) }
     val catalogVm: CatalogViewModel = viewModel()
-    val detailOpen = catalogVm.selectedGame != null
     val context = LocalContext.current
     val theme by AppStore.theme.collectAsState()
     val glass = theme == "glass"
     val hazeState = remember { HazeState() }
+    val scope = rememberCoroutineScope()
 
-    // paginas deslizaveis (arrastar pro lado troca de aba; a pilula acompanha)
-    val pagerState = rememberPagerState(initialPage = selected) { tabs.size }
-    LaunchedEffect(selected) {
-        if (pagerState.currentPage != selected && !pagerState.isScrollInProgress) {
-            pagerState.animateScrollToPage(selected)
-        }
-    }
-    LaunchedEffect(pagerState) {
-        // settledPage (nao currentPage): durante a animacao o currentPage passa pelas
-        // paginas do meio e cancelaria a animacao, parando uma antes do destino
-        snapshotFlow { pagerState.settledPage }.collect { page ->
-            if (page != selected) selected = page
-        }
-    }
+    // paginas deslizaveis: o pager e a UNICA fonte da verdade.
+    // clicar na dock anima direto pro destino (ultimo clique vence, sem loop de estados)
+    val pagerState = rememberPagerState(initialPage = AppStore.startTab.value) { tabs.size }
+    val selected = pagerState.currentPage
+    val detailOpen = catalogVm.selectedGame != null
     var lastBackMs by remember { mutableLongStateOf(0L) }
     var originTab by remember { mutableIntStateOf(-1) }
 
@@ -184,13 +176,13 @@ private fun HydroidRoot() {
         catalogVm.openGame(
             gg.hydroid.app.data.model.SteamSearchItem(name = game?.name ?: "", id = id)
         )
-        selected = 1
+        pagerState.animateScrollToPage(1)
     }
 
     // ao fechar a pagina do jogo, volta para a aba de origem (ex.: Biblioteca)
     LaunchedEffect(detailOpen) {
         if (!detailOpen && originTab >= 0) {
-            selected = originTab
+            pagerState.animateScrollToPage(originTab)
             originTab = -1
         }
     }
@@ -243,7 +235,7 @@ private fun HydroidRoot() {
                         0 -> LibraryScreen(onOpenGame = { game ->
                             originTab = 0
                             catalogVm.openFromLibrary(game)
-                            selected = 1
+                            scope.launch { pagerState.animateScrollToPage(1) }
                         })
                         1 -> CatalogScreen()
                         2 -> DownloadsScreen()
@@ -262,7 +254,7 @@ private fun HydroidRoot() {
         ) {
             FloatingDock(
                 selected = selected,
-                onSelect = { selected = it },
+                onSelect = { index -> pagerState.requestScrollToPage(index) },
                 hazeState = hazeState,
                 glass = glass,
                 modifier = Modifier
