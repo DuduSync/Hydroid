@@ -51,7 +51,20 @@ object ArchiveExtractor {
                     out.mkdirs()
                 } else {
                     out.parentFile?.mkdirs()
-                    out.outputStream().buffered().use { zis.copyTo(it) }
+                    // sobrescreve extracoes anteriores (open falha com EEXIST se o alvo
+                    // existe) e tenta de novo: FUSE as vezes segura um dentry antigo
+                    var attempt = 0
+                    while (true) {
+                        if (out.exists() && !out.isDirectory) out.delete()
+                        try {
+                            out.outputStream().buffered().use { zis.copyTo(it) }
+                            break
+                        } catch (e: java.io.FileNotFoundException) {
+                            if (attempt >= 2) throw e
+                            attempt++
+                            Thread.sleep(120)
+                        }
+                    }
                 }
                 entry = zis.nextEntry
             }

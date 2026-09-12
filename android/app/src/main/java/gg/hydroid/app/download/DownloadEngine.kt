@@ -250,6 +250,7 @@ object DownloadEngine {
             val parent = archive.parentFile!!
             val result = runCatching { ArchiveExtractor.extract(archive, parent) }
             if (result.isFailure) {
+                AppLog.e("Download", "extração manual falhou: ${archive.absolutePath}", result.exceptionOrNull())
                 post(ActiveDownload(id, dl.title, stage = "concluido", method = dl.method,
                     progress = 1f, savePath = path, uri = dl.uri,
                     error = tf("Extração falhou: %s", result.exceptionOrNull()?.message)))
@@ -294,6 +295,7 @@ object DownloadEngine {
                         ArchiveExtractor.extract(archive, parent)
                     }
                     if (result.isFailure) {
+                        AppLog.e("Download", "extração falhou: ${archive.absolutePath}", result.exceptionOrNull())
                         post(ActiveDownload(id, title, stage = "concluido", method = methodTag,
                             progress = 1f, savePath = archive.absolutePath,
                             error = tf("Extração falhou: %s", result.exceptionOrNull()?.message)))
@@ -303,6 +305,7 @@ object DownloadEngine {
                     val created = ArchiveExtractor.topLevelEntries(archive)
                         .map { File(parent, it) }
                         .filter { it.exists() }
+                    AppLog.i("Download", "extraido: ${created.size} item(s) de ${archive.name} em ${parent.name}")
                     if (AppStore.deleteArchive.value) archive.delete()
                     val leftover = if (archive.exists()) listOf(archive) else emptyList()
                     if (created.isNotEmpty()) {

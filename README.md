@@ -20,7 +20,7 @@
 
 APK universal assinado (arm64 + x86_64):
 
-➡️ [**Hydroid v0.9.6 — Releases**](https://github.com/DuduSync/Hydroid/releases/latest)
+➡️ [**Hydroid v0.9.7 — Releases**](https://github.com/DuduSync/Hydroid/releases/latest)
 
 ## Funcionalidades
 

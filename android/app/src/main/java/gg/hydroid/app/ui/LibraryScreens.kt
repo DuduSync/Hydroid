@@ -951,16 +951,19 @@ private fun openFolder(context: Context, savePath: String) {
         Toast.makeText(context, tr("Pasta fora do armazenamento principal"), Toast.LENGTH_SHORT).show()
         return
     }
-    val rel = "primary:" + target.absolutePath.removePrefix(base)
-    val uri = Uri.parse(
-        "content://com.android.externalstorage.documents/document/" + Uri.encode(rel)
+    val docId = "primary:" + target.absolutePath.removePrefix(base)
+    // buildDocumentUri (e nao string montada a mao): o docId precisa ficar com ":" e "/" puros
+    val uri = android.provider.DocumentsContract.buildDocumentUri(
+        "com.android.externalstorage.documents", docId
     )
     val intent = Intent(Intent.ACTION_VIEW).apply {
-        setDataAndType(uri, "vnd.android.document/directory")
+        setDataAndType(uri, android.provider.DocumentsContract.Document.MIME_TYPE_DIR)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
+    AppLog.i("UI", "abrir pasta: $docId")
     runCatching { context.startActivity(intent) }
         .onFailure {
-            android.util.Log.e("HydroidFolder", "abrir pasta falhou: ${uri}", it)
+            AppLog.e("UI", "abrir pasta falhou: $uri", it)
             Toast.makeText(context, tr("Nenhum app de arquivos encontrado"), Toast.LENGTH_SHORT).show()
         }
 }
