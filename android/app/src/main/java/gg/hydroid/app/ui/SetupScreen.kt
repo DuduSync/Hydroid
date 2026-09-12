@@ -1,5 +1,7 @@
 package gg.hydroid.app.ui
 
+import gg.hydroid.app.ui.theme.glassAwareElevation
+
 import gg.hydroid.app.data.i18n.tr
 
 import android.Manifest
@@ -220,6 +222,7 @@ private fun SetupStep(
     onAction: () -> Unit
 ) {
     ElevatedCard(
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = glassAwareElevation()),
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer

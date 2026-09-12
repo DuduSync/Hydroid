@@ -10,8 +10,36 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -42,11 +70,20 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.haze
+import dev.chrisbanes.haze.hazeChild
 import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.viewmodel.compose.viewModel
 import gg.hydroid.app.data.store.AppStore
@@ -69,11 +106,15 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             HydroidTheme {
-                LaunchedEffect(Unit) { gg.hydroid.app.data.update.UpdateManager.check() }
-                gg.hydroid.app.ui.UpdateDialog()
-                val setupDone by AppStore.setupDone.collectAsState()
-                if (!setupDone) SetupScreen { AppStore.setSetupDone(true) }
-                else HydroidRoot()
+                val theme by AppStore.theme.collectAsState()
+                Box(Modifier.fillMaxSize()) {
+                    if (theme == "glass") gg.hydroid.app.ui.theme.GlassBackground()
+                    LaunchedEffect(Unit) { gg.hydroid.app.data.update.UpdateManager.check() }
+                    gg.hydroid.app.ui.UpdateDialog()
+                    val setupDone by AppStore.setupDone.collectAsState()
+                    if (!setupDone) SetupScreen { AppStore.setSetupDone(true) }
+                    else HydroidRoot()
+                }
             }
         }
     }
@@ -105,10 +146,13 @@ private val tabs: List<Tab>
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HydroidRoot() {
-    var selected by rememberSaveable { mutableIntStateOf(1) }
+    var selected by rememberSaveable { mutableIntStateOf(AppStore.startTab.value) }
     val catalogVm: CatalogViewModel = viewModel()
     val detailOpen = catalogVm.selectedGame != null
     val context = LocalContext.current
+    val theme by AppStore.theme.collectAsState()
+    val glass = theme == "glass"
+    val hazeState = remember { HazeState() }
     var lastBackMs by remember { mutableLongStateOf(0L) }
     var originTab by remember { mutableIntStateOf(-1) }
 
@@ -143,58 +187,183 @@ private fun HydroidRoot() {
         }
     }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        contentWindowInsets = if (detailOpen) WindowInsets(0.dp) else ScaffoldDefaults.contentWindowInsets,
-        topBar = {
-            if (!detailOpen) {
-                Text(
-                    tr("Hydroid"),
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .windowInsetsPadding(WindowInsets.statusBars)
-                        .padding(start = 20.dp, top = 6.dp, bottom = 6.dp)
-                )
+    Box(Modifier.fillMaxSize()) {
+        Scaffold(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(if (glass) Modifier.haze(hazeState) else Modifier),
+            containerColor = MaterialTheme.colorScheme.background,
+            contentWindowInsets = WindowInsets(0.dp),
+            topBar = {
+                if (!detailOpen) {
+                    Text(
+                        tr("Hydroid"),
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .windowInsetsPadding(WindowInsets.statusBars)
+                            .padding(start = 20.dp, top = 6.dp, bottom = 6.dp)
+                    )
+                }
             }
-        },
-        bottomBar = {
-            if (!detailOpen) {
-                NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer) {
-                    tabs.forEachIndexed { index, tab ->
-                        NavigationBarItem(
-                            selected = selected == index,
-                            onClick = { selected = index },
-                            icon = { Icon(tab.icon, contentDescription = tab.label) },
-                            label = { Text(tab.label) },
-                            colors = NavigationBarItemDefaults.colors(
-                                indicatorColor = MaterialTheme.colorScheme.primaryContainer
-                            )
-                        )
+        ) { innerPadding ->
+            AnimatedContent(
+                targetState = selected,
+                transitionSpec = {
+                    val forward = targetState > initialState
+                    (slideInHorizontally(tween(280)) { if (forward) it / 4 else -it / 4 } +
+                        fadeIn(tween(220))) togetherWith
+                        (slideOutHorizontally(tween(220)) { if (forward) -it / 4 else it / 4 } +
+                            fadeOut(tween(160)))
+                },
+                label = "tabs"
+            ) { tab ->
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                ) {
+                    when (tab) {
+                        0 -> LibraryScreen(onOpenGame = { game ->
+                            originTab = 0
+                            catalogVm.openFromLibrary(game)
+                            selected = 1
+                        })
+                        1 -> CatalogScreen()
+                        2 -> DownloadsScreen()
+                        3 -> SettingsScreen()
                     }
                 }
             }
         }
-    ) { innerPadding ->
-        Crossfade(
-            targetState = selected,
-            animationSpec = tween(200),
-            label = "tabs"
-        ) { tab ->
-            Box(Modifier.fillMaxSize().padding(innerPadding)) {
-                when (tab) {
-                    0 -> LibraryScreen(onOpenGame = { game ->
-                        originTab = 0
-                        catalogVm.openFromLibrary(game)
-                        selected = 1
-                    })
-                    1 -> CatalogScreen()
-                    2 -> DownloadsScreen()
-                    3 -> SettingsScreen()
+
+        // dock flutuante (GNOME style) por cima do conteudo
+        AnimatedVisibility(
+            visible = !detailOpen,
+            enter = slideInVertically(tween(320)) { it } + fadeIn(tween(240)),
+            exit = slideOutVertically(tween(260)) { it } + fadeOut(tween(160)),
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
+            FloatingDock(
+                selected = selected,
+                onSelect = { selected = it },
+                hazeState = hazeState,
+                glass = glass,
+                modifier = Modifier
+                    .navigationBarsPadding()
+                    .padding(bottom = 16.dp)
+            )
+        }
+    }
+}
+
+// dock flutuante com pilula que desliza entre os icones
+@Composable
+private fun FloatingDock(
+    selected: Int,
+    onSelect: (Int) -> Unit,
+    hazeState: HazeState,
+    glass: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val dockShape = RoundedCornerShape(30.dp)
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 26.dp)
+            .then(
+                if (glass) Modifier
+                    // vidro: desfoca o que passa por tras, SEM tinta (nao muda a cor) e mascarado no formato da dock
+                    .hazeChild(
+                        state = hazeState,
+                        shape = dockShape,
+                        style = HazeStyle(
+                            backgroundColor = Color.Transparent,
+                            tints = emptyList(),
+                            blurRadius = 32.dp,
+                            noiseFactor = 0f
+                        )
+                    )
+                    // bisel: borda com brilho no topo (luz batendo no vidro)
+                    .border(
+                        width = 1.dp,
+                        brush = Brush.verticalGradient(
+                            listOf(Color.White.copy(alpha = 0.34f), Color.White.copy(alpha = 0.06f))
+                        ),
+                        shape = dockShape
+                    )
+                else Modifier
+            ),
+        shape = dockShape,
+        color = if (glass) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHigh,
+        tonalElevation = if (glass) 0.dp else 6.dp,
+        shadowElevation = if (glass) 0.dp else 10.dp,
+        border = if (glass) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .then(
+                    // gradiente de luz sutil no vidro (topo mais claro)
+                    if (glass) Modifier.background(
+                        Brush.verticalGradient(
+                            listOf(Color.White.copy(alpha = 0.13f), Color.White.copy(alpha = 0.03f))
+                        )
+                    ) else Modifier
+                )
+        ) {
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val itemWidth = maxWidth / tabs.size
+            val pillOffset by animateDpAsState(
+                targetValue = itemWidth * selected,
+                animationSpec = spring(dampingRatio = 0.72f, stiffness = 380f),
+                label = "dockPill"
+            )
+            Box(Modifier.fillMaxWidth().height(64.dp)) {
+                Box(
+                    Modifier
+                        .offset(x = pillOffset)
+                        .width(itemWidth)
+                        .fillMaxHeight()
+                        .padding(horizontal = 10.dp, vertical = 8.dp)
+                        .background(
+                            MaterialTheme.colorScheme.primaryContainer,
+                            RoundedCornerShape(percent = 50)
+                        )
+                )
+                Row(Modifier.fillMaxSize()) {
+                    tabs.forEachIndexed { index, tab ->
+                        val isSel = index == selected
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .clickable { onSelect(index) },
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                tab.icon,
+                                contentDescription = tab.label,
+                                tint = if (isSel) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                tab.label,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (isSel) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1
+                            )
+                        }
+                    }
                 }
             }
+        }
         }
     }
 }

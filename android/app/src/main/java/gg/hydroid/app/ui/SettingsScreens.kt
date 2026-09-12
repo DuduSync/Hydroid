@@ -1,11 +1,18 @@
 package gg.hydroid.app.ui
 
+import gg.hydroid.app.ui.theme.glassAwareElevation
+
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -34,6 +41,7 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Login
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
@@ -82,7 +90,17 @@ private enum class SettingsPage { CONTA, INTEGRACOES, FONTES, CONFIG, LOGS, CRED
 fun SettingsScreen() {
     var page by remember { mutableStateOf<SettingsPage?>(null) }
     BackHandler(enabled = page != null) { page = null }
-    Crossfade(targetState = page, animationSpec = tween(180), label = "settings") { current ->
+    AnimatedContent(
+        targetState = page,
+        transitionSpec = {
+            val forward = targetState != null
+            (slideInHorizontally(tween(260)) { if (forward) it / 3 else -it / 3 } +
+                fadeIn(tween(200))) togetherWith
+                (slideOutHorizontally(tween(220)) { if (forward) -it / 3 else it / 3 } +
+                    fadeOut(tween(150)))
+        },
+        label = "settings"
+    ) { current ->
         when (current) {
             null -> SettingsHome { page = it }
             SettingsPage.CONTA -> AccountPage { page = null }
@@ -102,7 +120,7 @@ private fun SettingsHome(onOpen: (SettingsPage) -> Unit) {
     val sources by AppStore.sources.collectAsState()
     val rdKey by AppStore.rdApiKey.collectAsState()
     LazyColumn(
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 120.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item {
@@ -137,7 +155,7 @@ private fun SettingsHome(onOpen: (SettingsPage) -> Unit) {
         item {
             NavRow(
                 Icons.Filled.Favorite, tr("Créditos"),
-                tr("Hydroid 0.8 · fork de estudo do Hydra (MIT)")
+                tr("Hydroid 0.9 · fork de estudo do Hydra (MIT)")
             ) { onOpen(SettingsPage.CREDITOS) }
         }
     }
@@ -615,7 +633,7 @@ private fun SettingsPageScaffold(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
-                .padding(bottom = 32.dp),
+                .padding(bottom = 120.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             content()
@@ -631,6 +649,7 @@ private fun SettingsSection(
     content: @Composable ColumnScope.() -> Unit
 ) {
     ElevatedCard(
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = glassAwareElevation()),
         colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer
         ),
@@ -1037,6 +1056,8 @@ private fun AppConfigPage(onBack: () -> Unit) {
     val maxConcurrent by AppStore.maxConcurrent.collectAsState()
     val speedLimitKbps by AppStore.speedLimitKbps.collectAsState()
     val language by AppStore.language.collectAsState()
+    val theme by AppStore.theme.collectAsState()
+    val startTab by AppStore.startTab.collectAsState()
     var folderMsg by remember { mutableStateOf<String?>(null) }
     var picker by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -1060,6 +1081,23 @@ private fun AppConfigPage(onBack: () -> Unit) {
     }
 
     SettingsPageScaffold(tr("Configurações do app"), onBack) {
+        SettingsSection(
+            icon = Icons.Filled.Palette,
+            title = tr("Tema"),
+            subtitle = tr("Visual do aplicativo")
+        ) {
+            PickerRow(
+                tr("Tema"),
+                tr("Sistema, claro, escuro, AMOLED ou glass"),
+                themeLabel(theme)
+            ) { picker = "theme" }
+            PickerRow(
+                tr("Aba inicial"),
+                tr("Qual aba abre ao iniciar o app"),
+                tabsLabel(startTab)
+            ) { picker = "starttab" }
+        }
+
         SettingsSection(
             icon = Icons.Filled.Language,
             title = tr("Idioma"),
@@ -1243,6 +1281,66 @@ private fun AppConfigPage(onBack: () -> Unit) {
         )
     }
 
+    if (picker == "starttab") {
+        AlertDialog(
+            onDismissRequest = { picker = null },
+            title = { Text(tr("Aba inicial")) },
+            text = {
+                Column {
+                    listOf(0, 1, 2, 3).forEach { idx ->
+                        Text(
+                            tabsLabel(idx),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    AppStore.setStartTab(idx)
+                                    picker = null
+                                }
+                                .padding(vertical = 12.dp),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (startTab == idx) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { picker = null }) { Text(tr("Fechar")) } }
+        )
+    }
+
+    if (picker == "theme") {
+        AlertDialog(
+            onDismissRequest = { picker = null },
+            title = { Text(tr("Tema")) },
+            text = {
+                Column {
+                    listOf(
+                        "auto" to tr("Sistema"),
+                        "light" to tr("Claro"),
+                        "dark" to tr("Escuro"),
+                        "amoled" to "AMOLED",
+                        "glass" to "Glassmorphism"
+                    ).forEach { (code, label) ->
+                        Text(
+                            label,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    AppStore.setTheme(code)
+                                    picker = null
+                                }
+                                .padding(vertical = 12.dp),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (theme == code) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { picker = null }) { Text(tr("Fechar")) } }
+        )
+    }
+
     if (picker == "lang") {
         AlertDialog(
             onDismissRequest = { picker = null },
@@ -1275,9 +1373,24 @@ private fun AppConfigPage(onBack: () -> Unit) {
 }
 
 private fun speedLimitKbpsLabel(kbps: Int): String = when {
-    kbps <= 0 -> tr("Sem limite")
+    kbps <= 0 -> "Sem limite"
     kbps < 1024 -> "$kbps KB/s"
     else -> "${kbps / 1024} MB/s"
+}
+
+private fun themeLabel(code: String): String = when (code) {
+    "light" -> tr("Claro")
+    "dark" -> tr("Escuro")
+    "amoled" -> "AMOLED"
+    "glass" -> "Glassmorphism"
+    else -> tr("Sistema")
+}
+
+private fun tabsLabel(index: Int): String = when (index) {
+    0 -> tr("Biblioteca")
+    1 -> tr("Catálogo")
+    2 -> tr("Downloads")
+    else -> tr("Ajustes")
 }
 
 // ---------- Logs ----------
@@ -1351,7 +1464,7 @@ private fun CreditosPage(onBack: () -> Unit) {
     SettingsPageScaffold(tr("Créditos"), onBack) {
         SettingsSection(
             icon = Icons.Filled.Favorite,
-            title = tr("Hydroid 0.8"),
+            title = tr("Hydroid 0.9"),
             subtitle = tr("fork de estudo do Hydra Launcher (MIT)")
         ) {
             Text(

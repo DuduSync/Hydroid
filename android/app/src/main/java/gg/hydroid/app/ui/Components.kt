@@ -22,11 +22,34 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import gg.hydroid.app.data.i18n.tf
 import gg.hydroid.app.data.i18n.tr
 import gg.hydroid.app.data.update.UpdateManager
+
+// mascara de fade no topo: o conteudo dissolve ate sumir (usado sob cabecalhos)
+fun Modifier.topFadeMask(height: Dp): Modifier = this
+    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+    .drawWithContent {
+        drawContent()
+        drawRect(
+            brush = Brush.verticalGradient(
+                0f to Color.Transparent,
+                1f to Color.Black,
+                startY = 0f,
+                endY = height.toPx()
+            ),
+            blendMode = BlendMode.DstIn
+        )
+    }
 
 // getter (nao const): reavalia o idioma a cada uso
 val BETA_MESSAGE: String

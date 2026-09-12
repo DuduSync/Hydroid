@@ -146,7 +146,7 @@ private val EN = mapOf<String, String>(
     "Função em beta" to "Beta feature",
     "Função em beta, toque no ícone para saber mais" to "Beta feature, tap the icon to learn more",
     "Histórico técnico para reportar problemas" to "Technical history for reporting issues",
-    "Hydroid 0.8 · fork de estudo do Hydra (MIT)" to "Hydroid 0.8 · study fork of Hydra (MIT)",
+    "Hydroid 0.9 · fork de estudo do Hydra (MIT)" to "Hydroid 0.9 · study fork of Hydra (MIT)",
     "Idioma" to "Language",
     "Idioma do aplicativo" to "App language",
     "Inicie um download pela página de um jogo" to "Start a download from a game page",
@@ -320,5 +320,13 @@ private val EN = mapOf<String, String>(
     "Mínimos" to "Minimum",
     "Recomendados" to "Recommended",
     "Ver no ProtonDB" to "View on ProtonDB",
-    "%s relatos" to "%s reports"
+    "%s relatos" to "%s reports",
+    "Tema" to "Theme",
+    "Visual do aplicativo" to "App appearance",
+    "Sistema, claro, escuro, AMOLED ou glass" to "System, light, dark, AMOLED or glass",
+    "Sistema" to "System",
+    "Claro" to "Light",
+    "Escuro" to "Dark",
+    "Aba inicial" to "Start tab",
+    "Qual aba abre ao iniciar o app" to "Which tab opens when the app starts"
 )

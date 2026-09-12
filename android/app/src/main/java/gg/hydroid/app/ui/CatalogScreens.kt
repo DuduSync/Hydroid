@@ -1,9 +1,18 @@
 package gg.hydroid.app.ui
 
+import gg.hydroid.app.ui.theme.glassAwareElevation
+
 import gg.hydroid.app.data.i18n.tr
 import gg.hydroid.app.data.i18n.tf
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -34,6 +43,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.haze
+import dev.chrisbanes.haze.hazeChild
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalUriHandler
@@ -109,35 +124,29 @@ private fun steamHeader(appId: Long) =
 @Composable
 fun CatalogScreen(vm: CatalogViewModel = viewModel()) {
     val selected = vm.selectedGame
-    if (selected != null) {
-        BackHandler { vm.closeGame() }
-        GameDetailScreen(vm)
-        return
+    BackHandler(enabled = selected != null) { vm.closeGame() }
+    AnimatedContent(
+        targetState = selected,
+        transitionSpec = {
+            if (targetState != null) {
+                (slideInHorizontally(tween(300)) { it } + fadeIn(tween(220))) togetherWith
+                    (slideOutHorizontally(tween(300)) { -it / 4 } + fadeOut(tween(180)))
+            } else {
+                (slideInHorizontally(tween(300)) { -it / 4 } + fadeIn(tween(220))) togetherWith
+                    (slideOutHorizontally(tween(300)) { it } + fadeOut(tween(180)))
+            }
+        },
+        label = "catalog"
+    ) { game ->
+        if (game != null) GameDetailScreen(vm) else CatalogSearchScreen(vm)
     }
-    val focus = LocalFocusManager.current
-    Column(Modifier.fillMaxSize()) {
-        OutlinedTextField(
-            value = vm.query,
-            onValueChange = { vm.query = it },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            placeholder = { Text(tr("Buscar jogos na Steam...")) },
-            leadingIcon = { Icon(Icons.Filled.Search, null) },
-            trailingIcon = {
-                if (vm.query.isNotBlank()) {
-                    FilledTonalIconButton(onClick = { vm.search() }) {
-                        Icon(Icons.Filled.Search, tr("Buscar"))
-                    }
-                }
-            },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = {
-                focus.clearFocus()
-                vm.search()
-            }),
-            singleLine = true,
-            shape = RoundedCornerShape(18.dp)
-        )
+}
 
+@Composable
+private fun CatalogSearchScreen(vm: CatalogViewModel) {
+    val focus = LocalFocusManager.current
+    val glassTheme = AppStore.theme.collectAsState().value == "glass"
+    Box(Modifier.fillMaxSize()) {
         when {
             vm.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
@@ -154,13 +163,44 @@ fun CatalogScreen(vm: CatalogViewModel = viewModel()) {
             )
             else -> LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, 16.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .topFadeMask(170.dp),
+                contentPadding = PaddingValues(start = 16.dp, top = 92.dp, end = 16.dp, bottom = 120.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(vm.results) { item -> GameCard(item) { vm.openGame(item) } }
             }
+        }
+
+        // busca: fundo solido nos outros temas; no glass o fade do conteudo resolve
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .background(if (glassTheme) Color.Transparent else MaterialTheme.colorScheme.background)
+        ) {
+            OutlinedTextField(
+                value = vm.query,
+                onValueChange = { vm.query = it },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                placeholder = { Text(tr("Buscar jogos na Steam...")) },
+                leadingIcon = { Icon(Icons.Filled.Search, null) },
+                trailingIcon = {
+                    if (vm.query.isNotBlank()) {
+                        FilledTonalIconButton(onClick = { vm.search() }) {
+                            Icon(Icons.Filled.Search, tr("Buscar"))
+                        }
+                    }
+                },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = {
+                    focus.clearFocus()
+                    vm.search()
+                }),
+                singleLine = true,
+                shape = RoundedCornerShape(18.dp)
+            )
         }
     }
 }
@@ -824,6 +864,7 @@ private fun ManualDownloadCard(
     val rdKey by AppStore.rdApiKey.collectAsState()
 
     ElevatedCard(
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = glassAwareElevation()),
         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
         colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer
@@ -945,6 +986,7 @@ private fun RepackCard(
 ) {
 
     ElevatedCard(
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = glassAwareElevation()),
         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
         colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer
@@ -1002,6 +1044,7 @@ private fun GameInfoSection(title: String, content: @Composable ColumnScope.() -
     )
     Spacer(Modifier.height(4.dp))
     ElevatedCard(
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = glassAwareElevation()),
         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
         colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer

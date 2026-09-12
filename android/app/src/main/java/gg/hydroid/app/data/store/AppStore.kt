@@ -58,6 +58,14 @@ object AppStore {
     private val _language = MutableStateFlow("")
     val language: StateFlow<String> = _language
 
+    // auto | light | dark | amoled | glass
+    private val _theme = MutableStateFlow("auto")
+    val theme: StateFlow<String> = _theme
+
+    // aba que abre com o app (indice das tabs)
+    private val _startTab = MutableStateFlow(1)
+    val startTab: StateFlow<Int> = _startTab
+
     private val _collections = MutableStateFlow<List<GameCollection>>(emptyList())
     val collections: StateFlow<List<GameCollection>> = _collections
 
@@ -99,6 +107,8 @@ object AppStore {
         _language.value = prefs.language.ifBlank {
             if (java.util.Locale.getDefault().language == "en") "en" else "pt"
         }
+        _theme.value = prefs.theme
+        _startTab.value = prefs.startTab
     }
 
     @kotlinx.serialization.Serializable
@@ -110,14 +120,17 @@ object AppStore {
         val maxConcurrent: Int = 2,
         val wifiOnly: Boolean = false,
         val speedLimitKbps: Int = 0,
-        val language: String = ""
+        val language: String = "",
+        val theme: String = "auto",
+        val startTab: Int = 1
     )
 
     private fun savePrefs() = save(
         "prefs.json",
         Prefs(
             _setupDone.value, _autoExtract.value, _deleteArchive.value, _downloadDir.value,
-            _maxConcurrent.value, _wifiOnly.value, _speedLimitKbps.value, _language.value
+            _maxConcurrent.value, _wifiOnly.value, _speedLimitKbps.value, _language.value,
+            _theme.value, _startTab.value
         )
     )
 
@@ -145,6 +158,10 @@ object AppStore {
     fun setSpeedLimitKbps(v: Int) { _speedLimitKbps.value = v.coerceAtLeast(0); savePrefs() }
 
     fun setLanguage(code: String) { _language.value = code; savePrefs() }
+
+    fun setTheme(code: String) { _theme.value = code; savePrefs() }
+
+    fun setStartTab(index: Int) { _startTab.value = index.coerceIn(0, 3); savePrefs() }
 
     // destino dos downloads: pasta escolhida pelo usuario ou padrao do app
     fun targetDir(context: Context): File {

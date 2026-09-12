@@ -1,5 +1,7 @@
 package gg.hydroid.app.ui
 
+import gg.hydroid.app.ui.theme.glassAwareElevation
+
 import gg.hydroid.app.data.i18n.tr
 import gg.hydroid.app.data.i18n.tf
 
@@ -11,6 +13,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*import androidx.compose.foundation.lazy.LazyColumn
@@ -49,6 +52,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.haze
+import dev.chrisbanes.haze.hazeChild
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -89,6 +98,73 @@ internal fun formatBytes(b: Long): String = when {
 }
 
 // ---------- Biblioteca ----------
+
+// superficie de vidro dos chips (pilula translucida com bisel de luz)
+@Composable
+private fun Modifier.glassChipSurface(glassTheme: Boolean, selected: Boolean, shape: androidx.compose.ui.graphics.Shape): Modifier =
+    this
+        .background(
+            when {
+                selected && glassTheme -> Brush.verticalGradient(
+                    listOf(
+                        Color(0xFF2ED3BD).copy(alpha = 0.42f),
+                        Color(0xFF1FB6A6).copy(alpha = 0.22f)
+                    )
+                )
+                selected -> Brush.verticalGradient(
+                    listOf(
+                        MaterialTheme.colorScheme.primaryContainer,
+                        MaterialTheme.colorScheme.primaryContainer
+                    )
+                )
+                glassTheme -> Brush.verticalGradient(
+                    listOf(Color.White.copy(alpha = 0.16f), Color.White.copy(alpha = 0.06f))
+                )
+                else -> Brush.verticalGradient(
+                    listOf(
+                        MaterialTheme.colorScheme.surfaceContainerHigh,
+                        MaterialTheme.colorScheme.surfaceContainerHigh
+                    )
+                )
+            },
+            shape
+        )
+        .then(
+            if (glassTheme) Modifier.border(
+                width = 1.dp,
+                brush = Brush.verticalGradient(
+                    listOf(Color.White.copy(alpha = 0.38f), Color.White.copy(alpha = 0.05f))
+                ),
+                shape = shape
+            ) else Modifier
+        )
+
+@Composable
+private fun GlassChip(
+    selected: Boolean,
+    label: String,
+    glassTheme: Boolean,
+    onClick: () -> Unit
+) {
+    val shape = RoundedCornerShape(percent = 50)
+    Box(
+        modifier = Modifier
+            .glassChipSurface(glassTheme = glassTheme, selected = selected, shape = shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Medium,
+            color = when {
+                selected && glassTheme -> Color(0xFFB9FFF2)
+                selected -> MaterialTheme.colorScheme.onPrimaryContainer
+                else -> MaterialTheme.colorScheme.onSurface
+            }
+        )
+    }
+}
 
 private fun normalize(s: String): String =
     java.text.Normalizer.normalize(s.lowercase(), java.text.Normalizer.Form.NFD)
@@ -153,7 +229,41 @@ fun LibraryScreen(onOpenGame: (LibraryGame) -> Unit = {}) {
             }
         }
 
-    Column(Modifier.fillMaxSize()) {
+    val glassTheme = AppStore.theme.collectAsState().value == "glass"
+
+    Box(Modifier.fillMaxSize()) {
+        if (shown.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(tr("Nada encontrado"), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .topFadeMask(230.dp),
+                contentPadding = PaddingValues(start = 16.dp, top = 138.dp, end = 16.dp, bottom = 120.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(shown, key = { it.appId }) { game: LibraryGame ->
+                    LibraryCard(
+                        game = game,
+                        modifier = Modifier.animateItem(),
+                        onClick = { onOpenGame(game) },
+                        onLongClick = { actionsFor = game },
+                        onToggleFavorite = { AppStore.toggleFavorite(game.appId) }
+                    )
+                }
+            }
+        }
+
+        // cabecalho (busca + filtros): fundo solido nos outros temas; no glass o fade do conteudo resolve
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .background(if (glassTheme) Color.Transparent else MaterialTheme.colorScheme.background)
+        ) {
         OutlinedTextField(
             value = query,
             onValueChange = { query = it },
@@ -172,30 +282,37 @@ fun LibraryScreen(onOpenGame: (LibraryGame) -> Unit = {}) {
                 modifier = Modifier.weight(1f)
             ) {
                 item {
-                    FilterChip(
+                    GlassChip(
                         selected = filter == FILTER_ALL,
-                        onClick = { filter = FILTER_ALL },
-                        label = { Text(tr("Todas")) }
-                    )
+                        label = tr("Todas"),
+                        glassTheme = glassTheme
+                    ) { filter = FILTER_ALL }
                 }
                 item {
-                    FilterChip(
+                    GlassChip(
                         selected = filter == FILTER_FAV,
-                        onClick = { filter = FILTER_FAV },
-                        label = { Text(tr("Favoritas")) }
-                    )
+                        label = tr("Favoritas"),
+                        glassTheme = glassTheme
+                    ) { filter = FILTER_FAV }
                 }
                 items(collections, key = { it.id }) { col ->
-                    FilterChip(
+                    GlassChip(
                         selected = filter == col.id,
-                        onClick = { filter = col.id },
-                        label = { Text(col.name) }
-                    )
+                        label = col.name,
+                        glassTheme = glassTheme
+                    ) { filter = col.id }
                 }
             }
-            Box {
+            Box(
+                Modifier
+                    .size(40.dp)
+                    .glassChipSurface(glassTheme = glassTheme, selected = false, shape = CircleShape)
+            ) {
                 IconButton(onClick = { sortOpen = true }) {
-                    Icon(Icons.AutoMirrored.Filled.Sort, tr("Ordenar"))
+                    Icon(
+                        Icons.AutoMirrored.Filled.Sort, tr("Ordenar"),
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
                 DropdownMenu(expanded = sortOpen, onDismissRequest = { sortOpen = false }) {
                     DropdownMenuItem(
@@ -212,30 +329,19 @@ fun LibraryScreen(onOpenGame: (LibraryGame) -> Unit = {}) {
                     )
                 }
             }
-            IconButton(onClick = { manageOpen = true }) {
-                Icon(Icons.Filled.CreateNewFolder, tr("Gerenciar coleções"))
-            }
-        }
-        if (shown.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(tr("Nada encontrado"), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        } else {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            Box(
+                Modifier
+                    .size(40.dp)
+                    .glassChipSurface(glassTheme = glassTheme, selected = false, shape = CircleShape)
             ) {
-                items(shown, key = { it.appId }) { game: LibraryGame ->
-                    LibraryCard(
-                        game = game,
-                        onClick = { onOpenGame(game) },
-                        onLongClick = { actionsFor = game },
-                        onToggleFavorite = { AppStore.toggleFavorite(game.appId) }
+                IconButton(onClick = { manageOpen = true }) {
+                    Icon(
+                        Icons.Filled.CreateNewFolder, tr("Gerenciar coleções"),
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
+        }
         }
     }
 
@@ -263,11 +369,13 @@ fun LibraryScreen(onOpenGame: (LibraryGame) -> Unit = {}) {
 @Composable
 private fun LibraryCard(
     game: LibraryGame,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onToggleFavorite: () -> Unit
 ) {
     Card(
+        modifier = modifier,
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer
@@ -604,15 +712,17 @@ fun DownloadsScreen() {
         return
     }
     LazyColumn(
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 120.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        items(downloads, key = { it.id }) { dl: ActiveDownload -> DownloadCard(dl) }
+        items(downloads, key = { it.id }) { dl: ActiveDownload ->
+            DownloadCard(dl, Modifier.animateItem())
+        }
     }
 }
 
 @Composable
-private fun DownloadCard(dl: ActiveDownload) {
+private fun DownloadCard(dl: ActiveDownload, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val badge = downloadMethodBadge(dl.method)
@@ -660,6 +770,8 @@ private fun DownloadCard(dl: ActiveDownload) {
     }
 
     ElevatedCard(
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = glassAwareElevation()),
+        modifier = modifier,
         colors = CardDefaults.elevatedCardColors(
             containerColor = if (dl.stage == "erro") MaterialTheme.colorScheme.errorContainer
             else MaterialTheme.colorScheme.surfaceContainer
