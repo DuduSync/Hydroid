@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CardGiftcard
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.CloudDownload
@@ -83,6 +84,7 @@ import kotlinx.coroutines.withContext
 
 // ===== DOACOES: link usado no botao "Apoiar com Pix" dos creditos =====
 private const val DONATION_URL = "https://nubank.com.br/cobrar/7rfap/6aa35e97-c27c-479b-b74b-dbd122db9877"
+private const val TELEGRAM_URL = "https://t.me/HydroidOFC"
 
 private enum class SettingsPage { CONTA, INTEGRACOES, FONTES, CONFIG, LOGS, CREDITOS }
 
@@ -1516,6 +1518,39 @@ private fun CreditosPage(onBack: () -> Unit) {
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    tr("Telegram oficial"),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.width(10.dp))
+                Box(
+                    Modifier
+                        .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(8.dp))
+                        .clickable {
+                            AppLog.i("UI", "creditos: abrir Telegram @HydroidOFC")
+                            uriHandler.openUri(TELEGRAM_URL)
+                        }
+                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Filled.Chat, null,
+                            modifier = Modifier.size(15.dp),
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            "@HydroidOFC",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
                 }
             }
             Spacer(Modifier.height(14.dp))

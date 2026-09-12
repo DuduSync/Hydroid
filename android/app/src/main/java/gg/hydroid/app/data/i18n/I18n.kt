@@ -345,6 +345,7 @@ private val EN = mapOf<String, String>(
     "Recomendados" to "Recommended",
     "Ver no ProtonDB" to "View on ProtonDB",
     "%s relatos" to "%s reports",
+    "Telegram oficial" to "Official Telegram",
     "Tema" to "Theme",
     "Visual do aplicativo" to "App appearance",
     "Sistema, claro, escuro, AMOLED ou glass" to "System, light, dark, AMOLED or glass",
