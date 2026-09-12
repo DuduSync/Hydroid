@@ -27,7 +27,7 @@ object HttpClient {
         Request.Builder().url(url).apply(builder).build()
 }
 
-// loga TODA requisicao HTTP (metodo, host+caminho, codigo, tempo, bytes) — query so com os nomes das chaves
+// loga TODA requisicao HTTP (metodo, host+caminho, codigo, tempo, bytes) - query so com os nomes das chaves
 private object HttpLogger : okhttp3.Interceptor {
     override fun intercept(chain: okhttp3.Interceptor.Chain): okhttp3.Response {
         val rq = chain.request()
@@ -72,7 +72,7 @@ object SteamApi {
             .getOrDefault(emptyList())
     }
 
-    // jogos em alta (populares / lancamentos / promocoes / em breve) — home do catalogo
+    // jogos em alta (populares / lancamentos / promocoes / em breve) - home do catalogo
     suspend fun featured(): Map<String, List<SteamFeaturedItem>> = withContext(Dispatchers.IO) {
         val url = "https://store.steampowered.com/api/featuredcategories?cc=BR&l=portuguese"
         val raw = runCatching { httpGetJson(url) }.getOrNull() ?: return@withContext emptyMap()
@@ -101,7 +101,7 @@ object SteamApi {
 }
 
 object ProtonDbApi {
-    // tier de compatibilidade (platinum/gold/silver/bronze) — endpoint publico do site
+    // tier de compatibilidade (platinum/gold/silver/bronze) - endpoint publico do site
     suspend fun tier(appId: Long): ProtonTier? = withContext(Dispatchers.IO) {
         runCatching {
             val req = HttpClient.get("https://www.protondb.com/api/v1/reports/summaries/$appId.json") {
@@ -164,9 +164,9 @@ class RealDebridApi(private var apiKey: String) {
             if (!resp.isSuccessful) {
                 val friendly = when {
                     raw.contains("hoster_unsupported") ->
-                        "Hoster não suportado pela Real-Debrid — tente o método Direto ou outro repack"
+                        "Hoster não suportado pela Real-Debrid - tente o método Direto ou outro repack"
                     raw.contains("bad_token") || raw.contains("bad_credentials") ->
-                        "Chave Real-Debrid inválida — reconfigure em Ajustes"
+                        "Chave Real-Debrid inválida - reconfigure em Ajustes"
                     raw.contains("unavailable_file") ->
                         "Arquivo indisponível no provedor"
                     raw.contains("permission_denied") || raw.contains("account_locked") ->

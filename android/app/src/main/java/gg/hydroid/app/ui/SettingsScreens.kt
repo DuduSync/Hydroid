@@ -73,6 +73,7 @@ import gg.hydroid.app.data.log.AppLog
 import gg.hydroid.app.data.model.DownloadSource
 import gg.hydroid.app.data.model.HydraUser
 import gg.hydroid.app.data.i18n.tr
+import gg.hydroid.app.data.i18n.tf
 import gg.hydroid.app.data.store.AppStore
 import gg.hydroid.app.data.store.CacheCleaner
 import gg.hydroid.app.data.store.StorageUtil
@@ -142,7 +143,7 @@ private fun SettingsHome(onOpen: (SettingsPage) -> Unit) {
         item {
             NavRow(
                 Icons.Filled.Link, tr("Fontes de download"),
-                "${sources.size} fonte(s) configurada(s)"
+                tf("%d fonte(s) configurada(s)", sources.size)
             ) { onOpen(SettingsPage.FONTES) }
         }
         item {
@@ -444,8 +445,8 @@ private fun AccountPage(onBack: () -> Unit) {
                     Text(
                         when {
                             sub == null -> tr("Sem assinatura")
-                            active -> "Ativa até $date"
-                            else -> "Expirada em $date"
+                            active -> tf("Ativa até %s", date)
+                            else -> tf("Expirada em %s", date)
                         },
                         style = MaterialTheme.typography.bodyMedium,
                         color = if (active) MaterialTheme.colorScheme.primary
@@ -489,7 +490,7 @@ private fun AccountPage(onBack: () -> Unit) {
                             null -> tr("Carregando...")
                             0 -> tr("Você não bloqueou nenhum usuário")
                             1 -> tr("1 usuário bloqueado")
-                            else -> "$blocks usuários bloqueados"
+                            else -> tf("%d usuários bloqueados", blocks)
                         },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -651,6 +652,7 @@ private fun SettingsSection(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     subtitle: String,
+    painter: androidx.compose.ui.graphics.painter.Painter? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     ElevatedCard(
@@ -662,7 +664,11 @@ private fun SettingsSection(
     ) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+                if (painter != null) {
+                    Icon(painter, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+                } else {
+                    Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+                }
                 Spacer(Modifier.width(10.dp))
                 Column {
                     Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
@@ -959,7 +965,7 @@ private fun FontesPage(onBack: () -> Unit) {
                             "registrada via Hydra: ${registered.name}" else "salva local: $url")
                         sourceMsg = if (registered != null)
                             "Fonte \"${registered.name}\" registrada"
-                        else tr("API do Hydra indisponível — salva localmente")
+                        else tr("API do Hydra indisponível - salva localmente")
                         sourceUrl = ""
                         addingSource = false
                     }
@@ -1083,7 +1089,7 @@ private fun AppConfigPage(onBack: () -> Unit) {
                 AppStore.setDownloadDir(path)
                 folderMsg = "Pasta definida: $path"
             } else {
-                folderMsg = tr("Pasta não suportada — escolha no armazenamento do aparelho")
+                folderMsg = tr("Pasta não suportada - escolha no armazenamento do aparelho")
             }
         }
     }
@@ -1538,11 +1544,12 @@ private fun CreditosPage(onBack: () -> Unit) {
         // card dedicado: canal oficial no Telegram
         SettingsSection(
             icon = Icons.Filled.Chat,
+            painter = androidx.compose.ui.res.painterResource(gg.hydroid.app.R.drawable.ic_telegram),
             title = tr("Comunidade no Telegram"),
-            subtitle = tr("Novidades, avisos e suporte do projeto")
+            subtitle = tr("Novidades, suporte e reporte de bugs")
         ) {
             Text(
-                tr("Acompanhe as atualizações do Hydroid e tire dúvidas no canal oficial:"),
+                tr("Achou um bug ou precisa de ajuda? Entre no canal oficial, reporte o problema, dê sugestões e fale direto com a gente:"),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -1555,7 +1562,11 @@ private fun CreditosPage(onBack: () -> Unit) {
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Icon(Icons.Filled.Chat, null, modifier = Modifier.size(20.dp))
+                Icon(
+                    androidx.compose.ui.res.painterResource(gg.hydroid.app.R.drawable.ic_telegram),
+                    null,
+                    modifier = Modifier.size(20.dp)
+                )
                 Spacer(Modifier.width(10.dp))
                 Text(
                     "${tr("Entrar no Telegram")} · @HydroidOFC",

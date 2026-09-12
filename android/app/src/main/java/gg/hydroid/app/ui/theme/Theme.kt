@@ -21,7 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import gg.hydroid.app.data.store.AppStore
 
-// Paleta Hydroid — indigo aguado + teal
+// Paleta Hydroid - indigo aguado + teal
 private val Aqua = Color(0xFF5EEAD4)
 private val Indigo = Color(0xFF8B93FF)
 

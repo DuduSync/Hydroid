@@ -19,7 +19,7 @@ data class SourceRepack(
 )
 
 // ponytail: so fontes servidas como JSON puro (github raw etc). Sites atras de
-// Cloudflare (hydralinks.cloud) exigem browser real — o Hydra de verdade resolve
+// Cloudflare (hydralinks.cloud) exigem browser real - o Hydra de verdade resolve
 // isso no servidor deles; a versao mobile usa fontes raw/mirrors por enquanto.
 object SourceFetcher {
 

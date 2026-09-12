@@ -29,7 +29,7 @@ import org.libtorrent4j.swig.settings_pack
 import org.libtorrent4j.swig.torrent_flags_t
 import java.io.File
 
-// engine de torrent local (jlibtorrent) — alternativa a Real-Debrid.
+// engine de torrent local (jlibtorrent) - alternativa a Real-Debrid.
 // ATENCAO: TorrentHandle vindo de alert so vale DENTRO do callback; guardamos
 // apenas o infoHash (valor) e reencontramos o handle com session.find().
 object TorrentEngine {
@@ -86,7 +86,7 @@ object TorrentEngine {
             return
         }
         // evita cards duplicados do mesmo titulo: mata o engine anterior SEM apagar os
-        // arquivos (sao os mesmos do torrent novo — apagar jogaria o progresso fora)
+        // arquivos (sao os mesmos do torrent novo - apagar jogaria o progresso fora)
         AppStore.downloads.value
             .filter { it.title == title && it.id != id && it.stage !in setOf("concluido", "erro") }
             .forEach {
@@ -171,7 +171,7 @@ object TorrentEngine {
                         is AddTorrentAlert -> {
                             val id = pendingId
                             val title = pendingTitle
-                            // captura o hash AQUI (dentro do callback) — o handle expira ao sair
+                            // captura o hash AQUI (dentro do callback) - o handle expira ao sair
                             val hash: Sha1Hash? =
                                 runCatching { alert.handle().infoHash() }.getOrNull()
                             AppLog.i("Torrent",

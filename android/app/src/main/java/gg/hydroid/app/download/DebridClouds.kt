@@ -206,7 +206,7 @@ object DebridClouds {
         error(tr("Timeout aguardando o TorBox"))
     }
 
-    // TorBox as vezes devolve "data" como objeto em vez de array (e "files" tambem) — aceita os dois
+    // TorBox as vezes devolve "data" como objeto em vez de array (e "files" tambem) - aceita os dois
     private fun torboxFirstItem(raw: String): JsonObject? = runCatching {
         when (val data = json.parseToJsonElement(raw).jsonObject["data"]) {
             is JsonArray -> data.firstOrNull()?.jsonObject

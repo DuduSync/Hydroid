@@ -27,7 +27,7 @@ class HydroidApp : Application() {
         // APK de update ja instalado nao serve mais: apaga pra nao ocupar ~45 MB no cache
         UpdateManager.cleanupOldApks(this)
         // pre-carrega o app: home do catalogo + contagem de downloads (biblioteca e home)
-        // tudo em background — as abas abrem ja populadas e seguem sincronizando
+        // tudo em background - as abas abrem ja populadas e seguem sincronizando
         FeaturedCache.ensureLoaded()
         RepackFinder.warmUp()
         // quando a rede volta (ex.: Wi-Fi ligado), solta a fila de downloads

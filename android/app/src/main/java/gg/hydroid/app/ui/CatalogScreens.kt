@@ -108,6 +108,13 @@ class CatalogViewModel : ViewModel() {
         }
     }
 
+    // campo apagado: volta pra home de descoberta
+    fun clearSearch() {
+        query = ""
+        results = emptyList()
+        searched = false
+    }
+
     fun openGame(item: SteamSearchItem) {
         AppLog.i("Catalogo", "abrindo pagina: ${item.name} (${item.id})")
         selectedGame = item
@@ -198,7 +205,14 @@ private fun CatalogSearchScreen(vm: CatalogViewModel) {
         ) {
             OutlinedTextField(
                 value = vm.query,
-                onValueChange = { vm.query = it },
+                onValueChange = { q ->
+                    vm.query = q
+                    // apagou o campo: volta pra home de descoberta (chips) com os jogos em alta
+                    if (q.isBlank() && vm.searched) {
+                        AppLog.i("Catalogo", "busca limpa: voltando pra home")
+                        vm.clearSearch()
+                    }
+                },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 placeholder = { Text(tr("Buscar jogos na Steam...")) },
                 leadingIcon = { Icon(Icons.Filled.Search, null) },
@@ -456,6 +470,29 @@ fun GameDetailScreen(vm: CatalogViewModel) {
 
     fun start(uri: String, method: DownloadMethod, title: String) {
         AppLog.i("Catalogo", "baixar: $title [${method.name}] ${uri.take(100)}")
+        // notificacao desligada no sistema = usuario nao acompanha o download; avisa e oferece o atalho
+        if (!androidx.core.app.NotificationManagerCompat.from(AppStore.appContext).areNotificationsEnabled()) {
+            AppLog.w("Download", "notificacoes desativadas no sistema - avisando o usuario")
+            scope.launch {
+                val r = snackbar.showSnackbar(
+                    message = tr("Notificações desativadas - o progresso não vai aparecer"),
+                    actionLabel = tr("Ativar"),
+                    duration = SnackbarDuration.Long
+                )
+                if (r == SnackbarResult.ActionPerformed) {
+                    runCatching {
+                        AppStore.appContext.startActivity(
+                            android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                .putExtra(
+                                    android.provider.Settings.EXTRA_APP_PACKAGE,
+                                    AppStore.appContext.packageName
+                                )
+                                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                    }
+                }
+            }
+        }
         DownloadEngine.start(
             AppStore.appContext,
             id = "dl-${System.currentTimeMillis()}",
@@ -463,7 +500,7 @@ fun GameDetailScreen(vm: CatalogViewModel) {
             uri = uri,
             method = method
         )
-        scope.launch { snackbar.showSnackbar(tr("Download iniciado — acompanhe em Downloads")) }
+        scope.launch { snackbar.showSnackbar(tr("Download iniciado - acompanhe em Downloads")) }
     }
 
     fun startChecked(uri: String, method: DownloadMethod, title: String) {

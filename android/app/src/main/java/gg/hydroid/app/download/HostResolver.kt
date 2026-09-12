@@ -67,7 +67,7 @@ object HostResolver {
             AppLog.i("Hoster", "gofile $id -> CDN alternativa")
             Result.Ok(cdn, "gofile.io")
         } else {
-            Result.Fail("gofile.io", tf("%s: acesso recusado (conteúdo privado/expirado?) — tente Real-Debrid", "Gofile"))
+            Result.Fail("gofile.io", tf("%s: acesso recusado (conteúdo privado/expirado?) - tente Real-Debrid", "Gofile"))
         }
     }
 

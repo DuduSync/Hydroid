@@ -38,8 +38,10 @@ fun localized(base: Context): Context {
 private val EN = mapOf<String, String>(
     "%d downloads disponíveis" to "%d downloads available",
     "%d downloads em andamento" to "%d downloads in progress",
-    "%s: acesso recusado (conteúdo privado/expirado?) — tente Real-Debrid" to
-        "%s: access denied (private/expired content?) — try Real-Debrid",
+    "%d fonte(s) configurada(s)" to "%d source(s) configured",
+    "%d usuários bloqueados" to "%d blocked users",
+    "%s: acesso recusado (conteúdo privado/expirado?) - tente Real-Debrid" to
+        "%s: access denied (private/expired content?) - try Real-Debrid",
     "%s: arquivo não encontrado ou apagado" to "%s: file not found or deleted",
     "%s: limite de requisições, espere alguns minutos" to "%s: rate limited, wait a few minutes",
     "%s: link direto não encontrado" to "%s: direct link not found",
@@ -54,7 +56,7 @@ private val EN = mapOf<String, String>(
     "MEGA não é suportado no direto (use Real-Debrid/TorBox)" to
         "MEGA is not supported for direct downloads (use Real-Debrid/TorBox)",
     "1 usuário bloqueado" to "1 blocked user",
-    "API do Hydra indisponível — salva localmente" to "Hydra API unavailable — saved locally",
+    "API do Hydra indisponível - salva localmente" to "Hydra API unavailable - saved locally",
     "Abrir ajustes" to "Open settings",
     "Abrir pasta" to "Open folder",
     "Acesso a arquivos" to "File access",
@@ -130,7 +132,7 @@ private val EN = mapOf<String, String>(
     "Direto" to "Direct",
     "Doações em breve" to "Donations coming soon",
     "Download HTTP sem precisar de conta" to "HTTP download without an account",
-    "Download iniciado — acompanhe em Downloads" to "Download started — follow it in Downloads",
+    "Download iniciado - acompanhe em Downloads" to "Download started - follow it in Downloads",
     "Downloads de torrents e hosters" to "Torrent and hoster downloads",
     "Downloads disponíveis" to "Available downloads",
     "Downloads ficam aguardando até conectar numa rede Wi-Fi" to
@@ -217,11 +219,14 @@ private val EN = mapOf<String, String>(
     "Pasta de downloads" to "Download folder",
     "Pasta de downloads, extração automática" to "Download folder, auto-extract",
     "Pasta fora do armazenamento principal" to "Folder outside main storage",
-    "Pasta não suportada — escolha no armazenamento do aparelho" to
-        "Unsupported folder — pick one from device storage",
+    "Pasta não suportada - escolha no armazenamento do aparelho" to
+        "Unsupported folder - pick one from device storage",
     "Pasta padrão restaurada" to "Default folder restored",
     "Pausar" to "Pause",
     "Perfil" to "Profile",
+    "Ativa até %s" to "Active until %s",
+    "Ativar" to "Enable",
+    "Expirada em %s" to "Expired on %s",
     "Permitir" to "Allow",
     "Permitir notificações" to "Allow notifications",
     "Permitir que outros usuários me presenteiem" to "Allow other users to gift me",
@@ -345,11 +350,15 @@ private val EN = mapOf<String, String>(
     "Recomendados" to "Recommended",
     "Ver no ProtonDB" to "View on ProtonDB",
     "%s relatos" to "%s reports",
+    "Achou um bug ou precisa de ajuda? Entre no canal oficial, reporte o problema, dê sugestões e fale direto com a gente:" to
+        "Found a bug or need help? Join the official channel to report it, share ideas and talk to us directly:",
     "Acompanhe as atualizações do Hydroid e tire dúvidas no canal oficial:" to
         "Follow Hydroid updates and get help in the official channel:",
     "Comunidade no Telegram" to "Telegram community",
     "Entrar no Telegram" to "Join Telegram",
-    "Novidades, avisos e suporte do projeto" to "Project news, announcements and support",
+    "Notificações desativadas - o progresso não vai aparecer" to
+        "Notifications are off - download progress won't show",
+    "Novidades, suporte e reporte de bugs" to "News, support and bug reports",
     "Telegram oficial" to "Official Telegram",
     "Tema" to "Theme",
     "Visual do aplicativo" to "App appearance",

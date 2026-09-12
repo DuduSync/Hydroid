@@ -81,7 +81,7 @@ object HydraAccountApi {
         }.getOrDefault(false)
     }
 
-    // resolve links de hosters no servidor do Hydra (datanodes, vikingfile...) — precisa de conta
+    // resolve links de hosters no servidor do Hydra (datanodes, vikingfile...) - precisa de conta
     suspend fun unlockHoster(path: String, url: String): String? = withContext(Dispatchers.IO) {
         refreshIfNeeded()
         val token = AppStore.hydraAuth.value?.accessToken ?: return@withContext null

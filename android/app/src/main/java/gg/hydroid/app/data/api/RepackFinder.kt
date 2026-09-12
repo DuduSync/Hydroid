@@ -101,7 +101,7 @@ object RepackFinder {
     private fun tokens(s: String): List<String> =
         s.lowercase().replace(Regex("[^a-z0-9]+"), " ").trim().split(" ").filter { it.isNotBlank() }
 
-    // nome do jogo = parte antes do primeiro "(" ou "[" — o resto e versao/repack
+    // nome do jogo = parte antes do primeiro "(" ou "[" - o resto e versao/repack
     private fun namePart(title: String): String =
         title.substringBefore('(').substringBefore('[').trim()
 
