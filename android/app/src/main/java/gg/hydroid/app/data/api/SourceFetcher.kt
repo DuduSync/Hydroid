@@ -30,7 +30,10 @@ object SourceFetcher {
     suspend fun fetch(url: String, appContext: android.content.Context): SourceCatalog? {
         synchronized(cache) {
             cache[url]?.let { (at, cat) ->
-                if (System.currentTimeMillis() - at < TTL_MS) return cat
+                if (System.currentTimeMillis() - at < TTL_MS) {
+                    android.util.Log.i("HydroidSource", "cache: $url")
+                    return cat
+                }
             }
         }
         val raw = runCatching { httpGetJson(url) }

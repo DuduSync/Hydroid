@@ -39,13 +39,18 @@ object DownloadEngine {
 
     fun start(context: Context, id: String, title: String, uri: String, method: DownloadMethod) {
         // mesmo titulo: substitui o download anterior (os dois escreveriam no MESMO arquivo)
+        // id != id: retomar um download pausado nao pode cancelar ele mesmo
         AppStore.downloads.value
-            .filter { it.title == title && it.stage !in setOf("concluido", "erro") }
-            .forEach { cancel(it.id) }
+            .filter { it.title == title && it.id != id && it.stage !in setOf("concluido", "erro") }
+            .forEach {
+                AppLog.i("Download", "titulo repetido: cancelando anterior ${it.id} (${it.stage})")
+                cancel(it.id)
+            }
         synchronized(this) {
             queue.removeAll { it.id == id }
             queue.add(Queued(id, title, uri, method))
         }
+        AppLog.i("Download", "enfileirado: $title [${tagOf(method)}] fila=${queue.size}")
         post(ActiveDownload(id, title, stage = "na fila", method = tagOf(method), uri = uri))
         pump()
     }
@@ -66,6 +71,7 @@ object DownloadEngine {
                     queue.forEach { q ->
                         val cur = AppStore.downloads.value.firstOrNull { it.id == q.id }
                         if (cur != null && cur.stage != "aguardando Wi-Fi") {
+                            AppLog.i("Download", "fila: ${q.title} aguardando Wi-Fi (rede movel)")
                             post(cur.copy(stage = "aguardando Wi-Fi", speedBps = 0))
                         }
                     }
@@ -74,7 +80,9 @@ object DownloadEngine {
                 val max = AppStore.maxConcurrent.value
                 var busy = busyIds.size
                 while (queue.isNotEmpty() && (max <= 0 || busy < max)) {
-                    launchDownload(queue.removeAt(0))
+                    val next = queue.removeAt(0)
+                    AppLog.i("Download", "iniciando da fila: ${next.title} [${tagOf(next.method)}] (ativos=$busy, max=${if (max <= 0) "sem limite" else max})")
+                    launchDownload(next)
                     busy++
                 }
             } finally {
@@ -155,6 +163,7 @@ object DownloadEngine {
 
     fun cancel(id: String) {
         val dl = AppStore.downloads.value.firstOrNull { it.id == id }
+        AppLog.i("Download", "cancel: ${dl?.title ?: id} [${dl?.stage ?: "?"}]")
         cancelled = cancelled + id
         synchronized(this) { queue.removeAll { it.id == id } }
         jobs.remove(id)?.cancel()
@@ -168,11 +177,14 @@ object DownloadEngine {
         synchronized(this) { busyIds.remove(id) }
         AppStore.downloads.value.filter { it.id == "cloud-$id" }.forEach { AppStore.removeDownload(it.id) }
         AppStore.removeDownload(id)
+        // cancela tambem derruba/atualiza a notificacao (antes ficava presa em "Pausado")
+        refreshNotification()
         pump()
     }
 
     fun pause(id: String) {
         val dl = AppStore.downloads.value.firstOrNull { it.id == id } ?: return
+        AppLog.i("Download", "pause: ${dl.title} [${dl.stage}]")
         paused = paused + id
         synchronized(this) { queue.removeAll { it.id == id } }
         synchronized(this) { busyIds.remove(id) }
@@ -239,6 +251,7 @@ object DownloadEngine {
     ) {
         val doExtract = AppStore.autoExtract.value
         if (!doExtract && !moveToTarget) return
+        AppLog.i("Download", "pos-download: $title extracao=$doExtract mover=$moveToTarget em $savePath")
         scope.launch {
             var current = File(savePath)
             var saved = listOf(current)
@@ -246,6 +259,7 @@ object DownloadEngine {
             if (doExtract) {
                 val archive = findArchive(current)
                 if (archive != null) {
+                    AppLog.i("Download", "extraindo: ${archive.name}")
                     post(ActiveDownload(id, title, stage = "extraindo", method = methodTag,
                         progress = 1f, savePath = savePath))
                     val parent = archive.parentFile!!
@@ -279,11 +293,12 @@ object DownloadEngine {
                     val dest = uniqueDest(File(target, current.name))
                     runCatching { moveRecursive(current, dest) }
                         .onSuccess {
+                            AppLog.i("Download", "movido: ${current.absolutePath} -> ${dest.absolutePath}")
                             current = dest
                             saved = listOf(dest)
                         }
                         .onFailure {
-                            android.util.Log.e("HydroidMove", "mover falhou: ${it.message}", it)
+                            AppLog.e("Download", "mover falhou: ${it.message}", it)
                         }
                 }
             }
@@ -342,11 +357,21 @@ object DownloadEngine {
 
     // notificacao: mostra o download ativo; para quando nao ha mais nenhum
     fun notifyService(dl: ActiveDownload) {
+        refreshNotification()
+        if (dl.stage == "extraindo") {
+            DownloadService.update(AppStore.appContext, dl.title, tr("Extraindo..."), 100, true)
+        }
+    }
+
+    // recalcula a notificacao a partir da lista atual (chamar depois de remover cards)
+    fun refreshNotification() {
         val context = AppStore.appContext
         val active = AppStore.downloads.value.filter {
             it.stage !in listOf("concluido", "erro")
         }
-        if (active.isNotEmpty()) {
+        if (active.isEmpty()) {
+            DownloadService.stop(context)
+        } else {
             val first = active.first()
             val text = when (first.stage) {
                 "baixando" -> "${formatSpeed(first.speedBps)} · ${formatBytes(first.bytesDownloaded)} de ${formatBytes(first.totalBytes)}"
@@ -354,11 +379,6 @@ object DownloadEngine {
             }
             DownloadService.update(context, first.title, text, (first.progress * 100).toInt(),
                 first.stage != "baixando")
-        } else {
-            DownloadService.stop(context)
-        }
-        if (dl.stage == "extraindo") {
-            DownloadService.update(context, dl.title, "Extraindo...", 100, true)
         }
     }
 
@@ -430,6 +450,8 @@ object DownloadEngine {
                 var done = startAt
                 var lastMs = System.currentTimeMillis()
                 var lastBytes = startAt
+                var lastLogMs = 0L
+                AppLog.i("Download", "HTTP conectado: $title -> ${url.take(100)} (code=${r.code}${if (startAt > 0) ", retomando de ${formatBytes(startAt)}" else ""})")
                 var tokens = 0.0
                 var lastRefill = System.currentTimeMillis()
                 java.io.FileOutputStream(outFile, true).use { out ->
@@ -466,6 +488,11 @@ object DownloadEngine {
                                 bytesDownloaded = done, totalBytes = total, speedBps = speed
                             ))
                             lastMs = now; lastBytes = done
+                            if (now - lastLogMs > 15000) {
+                                lastLogMs = now
+                                AppLog.i("Download",
+                                    "progresso $title: ${"%.1f".format(if (total > 0) 100.0 * done / total else 0.0)}% ${formatSpeed(speed)} (${formatBytes(done)}${if (total > 0) " de " + formatBytes(total) else ""})")
+                            }
                         }
                     }
                 }

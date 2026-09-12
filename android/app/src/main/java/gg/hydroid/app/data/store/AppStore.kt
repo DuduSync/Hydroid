@@ -2,6 +2,7 @@ package gg.hydroid.app.data.store
 
 import android.content.Context
 import android.os.Environment
+import gg.hydroid.app.data.log.AppLog
 import gg.hydroid.app.data.model.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -134,34 +135,36 @@ object AppStore {
         )
     )
 
-    fun setSetupDone(done: Boolean) { _setupDone.value = done; savePrefs() }
+    fun setSetupDone(done: Boolean) { AppLog.i("Store", "setup concluido=$done"); _setupDone.value = done; savePrefs() }
 
     // apagar arquivo so faz sentido junto de extrair automaticamente
     fun setAutoExtract(v: Boolean) {
+        AppLog.i("Store", "extrair automaticamente=$v")
         _autoExtract.value = v
         if (!v) _deleteArchive.value = false
         savePrefs()
     }
 
     fun setDeleteArchive(v: Boolean) {
+        AppLog.i("Store", "apagar arquivo apos extrair=$v")
         _deleteArchive.value = v && _autoExtract.value
         savePrefs()
     }
-    fun setDownloadDir(path: String) { _downloadDir.value = path; savePrefs() }
+    fun setDownloadDir(path: String) { AppLog.i("Store", "pasta de downloads=$path"); _downloadDir.value = path; savePrefs() }
 
     // 0 = sem limite de downloads simultaneos
-    fun setMaxConcurrent(v: Int) { _maxConcurrent.value = v.coerceIn(0, 5); savePrefs() }
+    fun setMaxConcurrent(v: Int) { AppLog.i("Store", "max simultaneos=$v"); _maxConcurrent.value = v.coerceIn(0, 5); savePrefs() }
 
-    fun setWifiOnly(v: Boolean) { _wifiOnly.value = v; savePrefs() }
+    fun setWifiOnly(v: Boolean) { AppLog.i("Store", "so Wi-Fi=$v"); _wifiOnly.value = v; savePrefs() }
 
     // 0 = sem limite de velocidade
-    fun setSpeedLimitKbps(v: Int) { _speedLimitKbps.value = v.coerceAtLeast(0); savePrefs() }
+    fun setSpeedLimitKbps(v: Int) { AppLog.i("Store", "limite de velocidade=${v}KB/s"); _speedLimitKbps.value = v.coerceAtLeast(0); savePrefs() }
 
-    fun setLanguage(code: String) { _language.value = code; savePrefs() }
+    fun setLanguage(code: String) { AppLog.i("Store", "idioma=$code"); _language.value = code; savePrefs() }
 
-    fun setTheme(code: String) { _theme.value = code; savePrefs() }
+    fun setTheme(code: String) { AppLog.i("Store", "tema=$code"); _theme.value = code; savePrefs() }
 
-    fun setStartTab(index: Int) { _startTab.value = index.coerceIn(0, 3); savePrefs() }
+    fun setStartTab(index: Int) { AppLog.i("Store", "aba inicial=$index"); _startTab.value = index.coerceIn(0, 3); savePrefs() }
 
     // destino dos downloads: pasta escolhida pelo usuario ou padrao do app
     fun targetDir(context: Context): File {
@@ -177,60 +180,76 @@ object AppStore {
         val f = File(dir, name)
         if (!f.exists()) return null
         gg.hydroid.app.data.api.JsonCfg.json.decodeFromString<T>(f.readText())
-    }.onFailure { android.util.Log.e("HydroidStore", "load $name", it) }.getOrNull()
+    }.onFailure { AppLog.e("Store", "load $name falhou", it) }.getOrNull()
 
     private inline fun <reified T> save(name: String, value: T) = runCatching {
         File(dir, name).writeText(gg.hydroid.app.data.api.JsonCfg.json.encodeToString(value))
-    }.onFailure { android.util.Log.e("HydroidStore", "save $name", it) }.let { }
+    }.onFailure { AppLog.e("Store", "save $name falhou", it) }.let { }
 
     private inline fun <reified T> commit(name: String, value: List<T>, flow: MutableStateFlow<List<T>>) {
         flow.value = value
         save(name, value)
     }
 
-    fun addSource(source: DownloadSource) = commit(
-        "sources.json", (_sources.value + source).distinctBy { it.url }, _sources
-    )
+    fun addSource(source: DownloadSource) {
+        AppLog.i("Store", "fonte adicionada: ${source.name} (${source.url.take(90)})")
+        commit("sources.json", (_sources.value + source).distinctBy { it.url }, _sources)
+    }
 
-    fun removeSource(id: String) = commit(
-        "sources.json", _sources.value.filter { it.id != id }, _sources
-    )
+    fun removeSource(id: String) {
+        AppLog.i("Store", "fonte removida: $id")
+        commit("sources.json", _sources.value.filter { it.id != id }, _sources)
+    }
 
-    fun addToLibrary(game: LibraryGame) = commit(
-        "library.json", (_library.value + game).distinctBy { it.appId }, _library
-    )
+    fun addToLibrary(game: LibraryGame) {
+        AppLog.i("Store", "biblioteca: +${game.name} (${game.appId})")
+        commit("library.json", (_library.value + game).distinctBy { it.appId }, _library)
+    }
 
-    fun removeFromLibrary(appId: Long) = commit(
-        "library.json", _library.value.filter { it.appId != appId }, _library
-    )
+    fun removeFromLibrary(appId: Long) {
+        AppLog.i("Store", "biblioteca: -$appId")
+        commit("library.json", _library.value.filter { it.appId != appId }, _library)
+    }
 
     fun isInLibrary(appId: Long) = _library.value.any { it.appId == appId }
 
-    fun toggleFavorite(appId: Long) = commit(
-        "library.json",
-        _library.value.map { if (it.appId == appId) it.copy(favorite = !it.favorite) else it },
-        _library
-    )
+    fun toggleFavorite(appId: Long) {
+        val favorito = _library.value.firstOrNull { it.appId == appId }?.favorite == true
+        AppLog.i("Store", "favorito ${if (favorito) "desmarcado" else "marcado"}: $appId")
+        commit(
+            "library.json",
+            _library.value.map { if (it.appId == appId) it.copy(favorite = !it.favorite) else it },
+            _library
+        )
+    }
 
-    fun setGameCollections(appId: Long, collectionIds: List<String>) = commit(
-        "library.json",
-        _library.value.map { if (it.appId == appId) it.copy(collectionIds = collectionIds) else it },
-        _library
-    )
+    fun setGameCollections(appId: Long, collectionIds: List<String>) {
+        AppLog.i("Store", "colecoes de $appId: ${collectionIds.size}")
+        commit(
+            "library.json",
+            _library.value.map { if (it.appId == appId) it.copy(collectionIds = collectionIds) else it },
+            _library
+        )
+    }
 
     fun addCollection(name: String): GameCollection {
         val col = GameCollection(id = java.util.UUID.randomUUID().toString(), name = name.trim())
+        AppLog.i("Store", "colecao criada: ${col.name}")
         commit("collections.json", _collections.value + col, _collections)
         return col
     }
 
-    fun renameCollection(id: String, name: String) = commit(
-        "collections.json",
-        _collections.value.map { if (it.id == id) it.copy(name = name.trim()) else it },
-        _collections
-    )
+    fun renameCollection(id: String, name: String) {
+        AppLog.i("Store", "colecao renomeada: $id -> ${name.trim()}")
+        commit(
+            "collections.json",
+            _collections.value.map { if (it.id == id) it.copy(name = name.trim()) else it },
+            _collections
+        )
+    }
 
     fun removeCollection(id: String) {
+        AppLog.i("Store", "colecao removida: $id")
         commit("collections.json", _collections.value.filter { it.id != id }, _collections)
         commit(
             "library.json",
@@ -239,40 +258,51 @@ object AppStore {
         )
     }
 
-    fun openGameFromShortcut(appId: Long) { _pendingOpenGame.value = appId }
+    fun openGameFromShortcut(appId: Long) {
+        AppLog.i("Store", "atalho: abrir jogo $appId")
+        _pendingOpenGame.value = appId
+    }
+
     fun consumePendingOpenGame() { _pendingOpenGame.value = null }
 
     fun setRdKey(key: String) {
+        AppLog.i("Store", "Real-Debrid: ${if (key.isBlank()) "chave removida" else "chave definida (${key.trim().length} chars)"}")
         _rdApiKey.value = key.trim()
         save("rdkey.json", key.trim())
     }
 
     fun setPremiumizeKey(key: String) {
+        AppLog.i("Store", "Premiumize: ${if (key.isBlank()) "chave removida" else "chave definida (${key.trim().length} chars)"}")
         _premiumizeKey.value = key.trim()
         save("premiumize.json", key.trim())
     }
 
     fun setAlldebridKey(key: String) {
+        AppLog.i("Store", "AllDebrid: ${if (key.isBlank()) "chave removida" else "chave definida (${key.trim().length} chars)"}")
         _alldebridKey.value = key.trim()
         save("alldebrid.json", key.trim())
     }
 
     fun setTorboxKey(key: String) {
+        AppLog.i("Store", "TorBox: ${if (key.isBlank()) "chave removida" else "chave definida (${key.trim().length} chars)"}")
         _torboxKey.value = key.trim()
         save("torbox.json", key.trim())
     }
 
     fun saveHydraAuth(auth: HydraAuth) {
+        AppLog.i("Store", "conta Hydra: tokens salvos")
         _hydraAuth.value = auth
         save("hydraauth.json", auth)
     }
 
     fun saveHydraUser(user: HydraUser) {
+        AppLog.i("Store", "conta Hydra: ${user.email ?: user.displayName ?: "usuario"}")
         _hydraUser.value = user
         save("hydrauser.json", user)
     }
 
     fun clearHydraAuth() {
+        AppLog.i("Store", "conta Hydra: desconectada")
         _hydraAuth.value = null
         _hydraUser.value = null
         File(dir, "hydraauth.json").delete()
@@ -290,9 +320,11 @@ object AppStore {
         commit("downloads.json", updated.take(30), _downloads)
     }
 
-    fun removeDownload(id: String) = commit(
-        "downloads.json", _downloads.value.filter { it.id != id }, _downloads
-    )
+    fun removeDownload(id: String) {
+        val dl = _downloads.value.firstOrNull { it.id == id }
+        AppLog.i("Store", "download removido: ${dl?.title ?: id} [${dl?.stage ?: "?"}]")
+        commit("downloads.json", _downloads.value.filter { it.id != id }, _downloads)
+    }
 
     // padrao: pasta Download do Android + subpasta HYDROID (precisa do acesso a arquivos)
     fun downloadsDir(context: Context): File {

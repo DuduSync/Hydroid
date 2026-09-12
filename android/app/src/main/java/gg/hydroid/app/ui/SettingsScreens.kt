@@ -102,7 +102,10 @@ fun SettingsScreen() {
         label = "settings"
     ) { current ->
         when (current) {
-            null -> SettingsHome { page = it }
+            null -> SettingsHome {
+                gg.hydroid.app.data.log.AppLog.i("UI", "ajustes: $it")
+                page = it
+            }
             SettingsPage.CONTA -> AccountPage { page = null }
             SettingsPage.INTEGRACOES -> IntegracoesPage { page = null }
             SettingsPage.FONTES -> FontesPage { page = null }
@@ -155,7 +158,7 @@ private fun SettingsHome(onOpen: (SettingsPage) -> Unit) {
         item {
             NavRow(
                 Icons.Filled.Favorite, tr("Créditos"),
-                tr("Hydroid 0.9.5 · fork de estudo do Hydra (MIT)")
+                tr("Hydroid 0.9.6 · fork de estudo do Hydra (MIT)")
             ) { onOpen(SettingsPage.CREDITOS) }
         }
     }
@@ -1464,7 +1467,7 @@ private fun CreditosPage(onBack: () -> Unit) {
     SettingsPageScaffold(tr("Créditos"), onBack) {
         SettingsSection(
             icon = Icons.Filled.Favorite,
-            title = tr("Hydroid 0.9.5"),
+            title = tr("Hydroid 0.9.6"),
             subtitle = tr("fork de estudo do Hydra Launcher (MIT)")
         ) {
             Text(

@@ -68,6 +68,7 @@ import gg.hydroid.app.data.api.HydraCloudApi
 import gg.hydroid.app.data.api.ProtonDbApi
 import gg.hydroid.app.data.api.RepackFinder
 import gg.hydroid.app.data.api.SteamApi
+import gg.hydroid.app.data.log.AppLog
 import gg.hydroid.app.data.model.*
 import gg.hydroid.app.data.store.AppStore
 import gg.hydroid.app.download.DownloadEngine
@@ -101,12 +102,14 @@ class CatalogViewModel : ViewModel() {
         loading = true
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
             results = SteamApi.search(q)
+            AppLog.i("Catalogo", "busca \"$q\": ${results.size} resultados")
             searched = true
             loading = false
         }
     }
 
     fun openGame(item: SteamSearchItem) {
+        AppLog.i("Catalogo", "abrindo pagina: ${item.name} (${item.id})")
         selectedGame = item
         details = null
         detailsLoading = true
@@ -120,7 +123,10 @@ class CatalogViewModel : ViewModel() {
         openGame(SteamSearchItem(name = lib.name, id = lib.appId))
     }
 
-    fun closeGame() { selectedGame = null }
+    fun closeGame() {
+        AppLog.i("Catalogo", "fechando pagina do jogo")
+        selectedGame = null
+    }
 }
 
 private fun steamHeader(appId: Long) =
@@ -445,6 +451,7 @@ fun GameDetailScreen(vm: CatalogViewModel) {
     }
 
     fun start(uri: String, method: DownloadMethod, title: String) {
+        AppLog.i("Catalogo", "baixar: $title [${method.name}] ${uri.take(100)}")
         DownloadEngine.start(
             AppStore.appContext,
             id = "dl-${System.currentTimeMillis()}",
@@ -594,7 +601,10 @@ fun GameDetailScreen(vm: CatalogViewModel) {
                 Spacer(Modifier.height(6.dp))
             }
             Button(
-                onClick = { sourcesOpen = true },
+                onClick = {
+                    AppLog.i("Catalogo", "sheet de fontes: ${repacks?.size ?: 0} disponiveis")
+                    sourcesOpen = true
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp)

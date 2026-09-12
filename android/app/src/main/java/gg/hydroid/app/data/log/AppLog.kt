@@ -8,9 +8,9 @@ import java.util.Date
 import java.util.Locale
 
 // log em arquivo para diagnostico: filesDir/logs/hydroid.log
-// rotaciona em 1MB (mantem .1) e pode ser compartilhado pelo app
+// rotaciona em 2MB (mantem .1) e pode ser compartilhado pelo app
 object AppLog {
-    private const val MAX_BYTES = 1_000_000L
+    private const val MAX_BYTES = 2_000_000L
     private var logDir: File? = null
     private var logFile: File? = null
     private val lock = Any()
@@ -28,6 +28,7 @@ object AppLog {
     }
 
     fun i(tag: String, msg: String) = write("I", tag, msg)
+    fun d(tag: String, msg: String) = write("D", tag, msg)
     fun w(tag: String, msg: String) = write("W", tag, msg)
 
     fun e(tag: String, msg: String, tr: Throwable? = null) =
@@ -45,6 +46,7 @@ object AppLog {
         when (level) {
             "E" -> android.util.Log.e(tag, msg)
             "W" -> android.util.Log.w(tag, msg)
+            "D" -> android.util.Log.d(tag, msg)
             else -> android.util.Log.i(tag, msg)
         }
     }

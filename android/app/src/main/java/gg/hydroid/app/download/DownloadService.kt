@@ -12,6 +12,7 @@ import android.content.Intent
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import gg.hydroid.app.data.log.AppLog
 
 // foreground service: mantem o processo vivo durante downloads e mostra o progresso
 class DownloadService : Service() {
@@ -39,6 +40,7 @@ class DownloadService : Service() {
 
         fun update(context: Context, title: String, text: String, percent: Int, indeterminate: Boolean) {
             ensureChannel(context)
+            AppLog.i("Service", "notificacao: $title | $text | $percent%${if (indeterminate) " (indeterminada)" else ""}")
             val intent = Intent(context, DownloadService::class.java).apply {
                 putExtra("title", title)
                 putExtra("text", text)
@@ -50,8 +52,9 @@ class DownloadService : Service() {
         }
 
         fun stop(context: Context) {
-            if (!running) return
+            val wasRunning = running
             running = false
+            if (wasRunning) AppLog.i("Service", "parando notificacao (sem downloads ativos)")
             context.stopService(Intent(context, DownloadService::class.java))
         }
     }

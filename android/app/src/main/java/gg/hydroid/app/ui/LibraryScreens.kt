@@ -82,6 +82,7 @@ import java.io.File
 import gg.hydroid.app.data.api.HydraCloudApi
 import gg.hydroid.app.data.api.RealDebridApi
 import gg.hydroid.app.data.api.RepackFinder
+import gg.hydroid.app.data.log.AppLog
 import gg.hydroid.app.data.model.ActiveDownload
 import gg.hydroid.app.data.model.DownloadSource
 import gg.hydroid.app.data.model.LibraryGame
@@ -259,7 +260,10 @@ fun LibraryScreen(onOpenGame: (LibraryGame) -> Unit = {}) {
                         game = game,
                         downloads = downloads[game.appId],
                         modifier = Modifier.animateItem(),
-                        onClick = { onOpenGame(game) },
+                        onClick = {
+                            AppLog.i("UI", "biblioteca: abrindo ${game.name} (${game.appId})")
+                            onOpenGame(game)
+                        },
                         onLongClick = { actionsFor = game },
                         onToggleFavorite = { AppStore.toggleFavorite(game.appId) }
                     )
@@ -295,21 +299,21 @@ fun LibraryScreen(onOpenGame: (LibraryGame) -> Unit = {}) {
                         selected = filter == FILTER_ALL,
                         label = tr("Todas"),
                         glassTheme = glassTheme
-                    ) { filter = FILTER_ALL }
+                    ) { AppLog.i("UI", "biblioteca: filtro todas"); filter = FILTER_ALL }
                 }
                 item {
                     GlassChip(
                         selected = filter == FILTER_FAV,
                         label = tr("Favoritas"),
                         glassTheme = glassTheme
-                    ) { filter = FILTER_FAV }
+                    ) { AppLog.i("UI", "biblioteca: filtro favoritas"); filter = FILTER_FAV }
                 }
                 items(collections, key = { it.id }) { col ->
                     GlassChip(
                         selected = filter == col.id,
                         label = col.name,
                         glassTheme = glassTheme
-                    ) { filter = col.id }
+                    ) { AppLog.i("UI", "biblioteca: filtro colecao ${col.name}"); filter = col.id }
                 }
             }
             Box(
@@ -317,7 +321,7 @@ fun LibraryScreen(onOpenGame: (LibraryGame) -> Unit = {}) {
                     .size(40.dp)
                     .glassChipSurface(glassTheme = glassTheme, selected = false, shape = CircleShape)
             ) {
-                IconButton(onClick = { sortOpen = true }) {
+                IconButton(onClick = { AppLog.i("UI", "biblioteca: abrir ordenacao"); sortOpen = true }) {
                     Icon(
                         Icons.AutoMirrored.Filled.Sort, tr("Ordenar"),
                         modifier = Modifier.size(18.dp)

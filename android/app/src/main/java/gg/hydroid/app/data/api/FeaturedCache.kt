@@ -1,5 +1,6 @@
 package gg.hydroid.app.data.api
 
+import gg.hydroid.app.data.log.AppLog
 import gg.hydroid.app.data.model.SteamFeaturedItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,7 +25,12 @@ object FeaturedCache {
         }
         scope.launch {
             val f = runCatching { SteamApi.featured() }.getOrDefault(emptyMap())
-            if (f.isNotEmpty()) _data.value = f
+            if (f.isNotEmpty()) {
+                _data.value = f
+                AppLog.i("Featured", "home carregada: " + f.entries.joinToString(", ") { "${it.key}=${it.value.size}" })
+            } else {
+                AppLog.w("Featured", "home vazia (falha na busca?)")
+            }
             _loaded.value = true
         }
     }

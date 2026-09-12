@@ -1,5 +1,6 @@
 package gg.hydroid.app.data.api
 
+import gg.hydroid.app.data.log.AppLog
 import gg.hydroid.app.data.model.GameRepack
 import gg.hydroid.app.data.store.AppStore
 import kotlinx.coroutines.CoroutineScope
@@ -67,7 +68,9 @@ object RepackFinder {
             AppStore.library.value.forEach { queue[it.appId] = it.name }
             FeaturedCache.await().values.flatten().distinctBy { it.id }
                 .forEach { queue[it.id] = it.name }
+            AppLog.i("Repacks", "warmUp: ${queue.size} jogos pra checar em background")
             queue.forEach { (id, name) -> runCheck(id, name) }
+            AppLog.i("Repacks", "warmUp concluido: ${_counts.value.size} contagens em cache")
         }
     }
 
@@ -76,8 +79,14 @@ object RepackFinder {
             if (!checked.add(appId)) return
         }
         runCatching { find(name, appId).size }
-            .onSuccess { _counts.value = _counts.value + (appId to it) }
-            .onFailure { synchronized(checked) { checked.remove(appId) } }
+            .onSuccess {
+                AppLog.i("Repacks", "$name ($appId): $it downloads disponiveis")
+                _counts.value = _counts.value + (appId to it)
+            }
+            .onFailure {
+                AppLog.w("Repacks", "checagem falhou $name ($appId): ${it.message}")
+                synchronized(checked) { checked.remove(appId) }
+            }
     }
 
     private fun normalizeTitle(t: String) =

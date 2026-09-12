@@ -165,6 +165,12 @@ private fun HydroidRoot() {
     // clicar na dock anima direto pro destino (ultimo clique vence, sem loop de estados)
     val pagerState = rememberPagerState(initialPage = AppStore.startTab.value) { tabs.size }
     val selected = pagerState.currentPage
+    // log de navegacao: toda troca de aba (clique na dock ou gesto)
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.settledPage }.collect { page ->
+            gg.hydroid.app.data.log.AppLog.i("UI", "aba: ${tabs.getOrNull(page)?.label ?: page} ($page)")
+        }
+    }
     val detailOpen = catalogVm.selectedGame != null
     var lastBackMs by remember { mutableLongStateOf(0L) }
     // clique na dock: cancela a animacao anterior e anima ate a aba (ultimo clique vence)

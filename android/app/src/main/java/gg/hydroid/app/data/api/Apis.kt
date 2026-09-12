@@ -1,5 +1,6 @@
 package gg.hydroid.app.data.api
 
+import gg.hydroid.app.data.log.AppLog
 import gg.hydroid.app.data.model.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -19,10 +20,37 @@ object HttpClient {
     val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
+        .addInterceptor(HttpLogger)
         .build()
 
     fun get(url: String, builder: Request.Builder.() -> Unit = {}): Request =
         Request.Builder().url(url).apply(builder).build()
+}
+
+// loga TODA requisicao HTTP (metodo, host+caminho, codigo, tempo, bytes) — query so com os nomes das chaves
+private object HttpLogger : okhttp3.Interceptor {
+    override fun intercept(chain: okhttp3.Interceptor.Chain): okhttp3.Response {
+        val rq = chain.request()
+        val started = System.currentTimeMillis()
+        val resp = try {
+            chain.proceed(rq)
+        } catch (e: Exception) {
+            AppLog.w("HTTP", "${rq.method} ${safeUrl(rq.url.toString())} falhou: ${e.message}")
+            throw e
+        }
+        val ms = System.currentTimeMillis() - started
+        val bytes = resp.body?.contentLength() ?: -1L
+        AppLog.i("HTTP", "${rq.method} ${safeUrl(rq.url.toString())} -> ${resp.code} ($bytes bytes, ${ms}ms)")
+        return resp
+    }
+
+    // mantem host+caminho; na query loga so os nomes das chaves (valores podem ter chave de API)
+    private fun safeUrl(url: String): String {
+        val q = url.indexOf('?')
+        if (q < 0) return url
+        val keys = url.substring(q + 1).split('&').joinToString(",") { it.substringBefore('=') }
+        return url.substring(0, q) + "?$keys"
+    }
 }
 
 suspend fun httpGetJson(url: String, headers: Map<String, String> = emptyMap()): String =

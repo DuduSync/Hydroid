@@ -40,6 +40,7 @@ object TorrentEngine {
     private val pollers = mutableMapOf<String, Job>()
     private val hashes = mutableMapOf<String, Sha1Hash>()
     @Volatile private var pausedIds = setOf<String>()
+    @Volatile private var cancelledIds = setOf<String>()
     private var pendingId: String? = null
     private var pendingTitle: String? = null
 
@@ -78,56 +79,78 @@ object TorrentEngine {
 
     fun start(context: Context, id: String, title: String, magnet: String) {
         appContext = context.applicationContext
+        cancelledIds = cancelledIds - id
         val mgr = ensureSession() ?: run {
             post(ActiveDownload(id, title, stage = "erro", method = "torrent",
                 error = tr("Falha ao iniciar a engine de torrent")))
             return
         }
-        // evita cards duplicados do mesmo titulo
+        // evita cards duplicados do mesmo titulo: mata o engine anterior SEM apagar os
+        // arquivos (sao os mesmos do torrent novo — apagar jogaria o progresso fora)
         AppStore.downloads.value
-            .filter { it.title == title && it.stage !in setOf("concluido", "erro") }
-            .forEach { AppStore.removeDownload(it.id) }
-        pollers[id]?.cancel()
+            .filter { it.title == title && it.id != id && it.stage !in setOf("concluido", "erro") }
+            .forEach {
+                AppLog.i("Torrent", "titulo repetido: matando download anterior ${it.id} (${it.stage})")
+                kill(it.id, deleteFiles = false)
+            }
+        pollers.remove(id)?.cancel()
         pendingId = id
         pendingTitle = title
         post(ActiveDownload(id, title, stage = "conectando ao swarm", method = "torrent"))
+        AppLog.i("Torrent", "start: $title id=$id magnet=${magnet.take(100)}")
         try {
             mgr.download(withTrackers(magnet), AppStore.torrentsDir(context), torrent_flags_t())
         } catch (e: Exception) {
+            AppLog.e("Torrent", "magnet inválido: $title", e)
             post(ActiveDownload(id, title, stage = "erro", method = "torrent",
                 error = tf("Magnet inválido: %s", e.message)))
         }
     }
 
     fun cancel(id: String) {
+        AppLog.i("Torrent", "cancel: id=$id")
+        kill(id, deleteFiles = true)
+    }
+
+    // remove o download da sessao; deleteFiles=false mantem os dados (titulo repetido)
+    private fun kill(id: String, deleteFiles: Boolean) {
+        cancelledIds = cancelledIds + id
         pollers.remove(id)?.cancel()
         pausedIds = pausedIds - id
-        pendingId = pendingId.takeIf { it != id }
+        if (pendingId == id) {
+            pendingId = null
+            pendingTitle = null
+        }
         val hash = hashes.remove(id)
         if (hash != null) {
             runCatching {
                 manager?.find(hash)?.let { handle ->
                     // remove_flags_t.from_int(1) = delete_files
-                    manager?.remove(handle, remove_flags_t.from_int(1))
+                    manager?.remove(handle, remove_flags_t.from_int(if (deleteFiles) 1 else 0))
                 }
-            }
+            }.onFailure { AppLog.w("Torrent", "remove falhou: ${it.message}") }
         }
+        AppLog.i("Torrent", "kill: id=$id arquivos=${if (deleteFiles) "apagados" else "mantidos"}")
     }
 
     fun pause(id: String) {
         pausedIds = pausedIds + id
         val hash = hashes[id] ?: return
+        AppLog.i("Torrent", "pause: id=$id")
         runCatching { manager?.find(hash)?.pause() }
     }
 
     fun resume(context: Context, id: String, title: String, magnet: String) {
         pausedIds = pausedIds - id
+        cancelledIds = cancelledIds - id
+        AppLog.i("Torrent", "resume: $title id=$id")
         val hash = hashes[id]
         val handle = hash?.let { runCatching { manager?.find(it) }.getOrNull() }
         if (handle != null && handle.isValid()) {
             runCatching { handle.resume() }
         } else {
             // sessão perdida (app reiniciou): re-adiciona o magnet, os dados ficam no diretório
+            AppLog.i("Torrent", "sessao perdida pra id=$id, re-adicionando magnet")
             hashes.remove(id)
             start(context, id, title, magnet)
         }
@@ -151,6 +174,8 @@ object TorrentEngine {
                             // captura o hash AQUI (dentro do callback) — o handle expira ao sair
                             val hash: Sha1Hash? =
                                 runCatching { alert.handle().infoHash() }.getOrNull()
+                            AppLog.i("Torrent",
+                                "alert ADD_TORRENT id=${id ?: "-"} hash=${hash ?: "-"}")
                             if (id != null && title != null && hash != null) {
                                 pendingId = null
                                 pendingTitle = null
@@ -161,6 +186,7 @@ object TorrentEngine {
                         is TorrentErrorAlert -> {
                             val id = pendingId ?: return
                             pendingId = null
+                            AppLog.w("Torrent", "alert ERROR id=$id: ${alert.message()}")
                             post(ActiveDownload(id, pendingTitle ?: "Torrent", stage = "erro",
                                 method = "torrent", error = tf("Erro no torrent: %s", alert.message())))
                             DownloadEngine.onEngineDone(id)
@@ -180,11 +206,18 @@ object TorrentEngine {
     }
 
     private fun poll(id: String, title: String, hash: Sha1Hash) {
+        // nunca deixa um poller antigo rodando (virava zumbi e ressuscitava card/notificacao)
+        pollers.remove(id)?.cancel()
+        AppLog.i("Torrent", "poll iniciado: $title id=$id hash=$hash")
         pollers[id] = scope.launch {
             // da tempo da sessao registrar o torrent
             delay(1500)
             var lastLog = 0L
             while (isActive) {
+                if (cancelledIds.contains(id)) {
+                    AppLog.i("Torrent", "poll encerrado (cancelado): $title id=$id")
+                    break
+                }
                 val mgr = manager
                 if (mgr == null) { delay(1500); continue }
                 // handle duravel (nao vem do alert)
@@ -240,7 +273,10 @@ object TorrentEngine {
         ?: error("TorrentEngine sem contexto")
 
     private fun post(dl: ActiveDownload) {
+        // cancelado nao pode voltar pra tela (o poll ressuscitava o card a cada tick)
+        if (cancelledIds.contains(dl.id) && dl.stage != "erro") return
         scope.launch(Dispatchers.Main) {
+            if (cancelledIds.contains(dl.id) && dl.stage != "erro") return@launch
             AppStore.upsertDownload(dl)
             DownloadEngine.notifyService(dl)
         }
