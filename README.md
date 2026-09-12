@@ -25,23 +25,29 @@ APK universal assinado (arm64 + x86_64):
 
 - Busca de jogos na Steam com capas e detalhes (descrição em PT-BR)
 - Página do jogo imersiva: arte em tamanho cheio, sem barras, botão de voltar minimalista
-- Conta Hydra: login, sincronização da biblioteca e das fontes
+- **Conta Hydra**: login, sincronização da biblioteca e das fontes
+- Perfil da conta: visibilidade do perfil e dos souvenires, presentes na nuvem, bloqueados, segurança e assinatura do Hydra Cloud
 - Fontes de download registradas via **Hydra Cloud** — o servidor do Hydra resolve as fontes atrás de Cloudflare automaticamente
 - Repacks por jogo com **método de download explícito**:
   - **Real-Debrid** — torrents e hosters processados no cloud
   - **Premiumize, AllDebrid e TorBox** — alternativas em beta (com aviso no app)
   - **Torrent** — engine nativa (libtorrent4j) direto no aparelho, com peers, seeds e trackers públicos automáticos
   - **Direto** — download HTTP direto, sem precisar de conta (quando a fonte oferece link de arquivo real)
+- **Link manual**: cole um magnet ou URL direta na página do jogo pra baixar o que quiser
 - Downloads com progresso, velocidade, ETA e badge do método utilizado
 - **Pausar e continuar**: retoma de onde parou, mesmo depois de fechar o app
 - **Fila de downloads** com limite de simultâneos (1, 2, 3 ou sem limite)
 - **Só baixar no Wi-Fi** e **limite de velocidade** por download
+- Cancelar um download apaga o arquivo parcial (sem lixo no armazenamento)
 - Notificação de progresso em primeiro plano (foreground service)
 - Pós-download: **extração automática** de `.zip`/`.rar`, **abrir pasta**, extrair manualmente e apagar (removendo só o que aquele download criou)
+- Pasta de download escolhida por você (via SAF), configurável a qualquer momento
 - Setup guiado em 4 passos (notificações, otimização de bateria, acesso a arquivos e pasta de downloads)
 - **Atualização automática**: confere o release mais recente e instala o APK com um toque
+- Ajustes organizados em submenus (Integrações, Fontes, Configurações, Logs e Créditos), com validação das chaves dos serviços debrid
 - Logs internos com exportação para diagnóstico
 - Biblioteca local com capas
+- Interface em português (PT-BR)
 - Sair com dois toques no voltar (com aviso na tela)
 - Temas claro e escuro (Material 3)
 
