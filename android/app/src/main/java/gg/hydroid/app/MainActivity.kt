@@ -166,7 +166,9 @@ private fun HydroidRoot() {
         }
     }
     LaunchedEffect(pagerState) {
-        snapshotFlow { pagerState.currentPage }.collect { page ->
+        // settledPage (nao currentPage): durante a animacao o currentPage passa pelas
+        // paginas do meio e cancelaria a animacao, parando uma antes do destino
+        snapshotFlow { pagerState.settledPage }.collect { page ->
             if (page != selected) selected = page
         }
     }
