@@ -1,7 +1,0 @@
-node_modules
-dist
-out
-.gitignore
-migration.stub
-hydra-python-rpc/
-hydra-native/

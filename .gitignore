@@ -1,25 +1,25 @@
+# Android / Gradle
+.gradle/
+build/
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+
+# Chaves (nunca commitar)
+*.jks
+*.keystore
+
+# IDE / OS
 .vscode/
-node_modules/
-__pycache__
-dist
-out
+.idea/
+*.iml
 .DS_Store
+
+# Geral
 *.log*
-*.tsbuildinfo
 .env
-.vite
-ludusavi/**
-!ludusavi/config.yaml
-hydra-python-rpc/
-/hydra-native/
-native/hydra-native/target/
-.python-version
-
-# Sentry Config File
-.env.sentry-build-plugin
-
-*storybook.log
-Future-updates.md
-TO-DO.md
 .planning/
 .claude/
