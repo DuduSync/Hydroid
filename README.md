@@ -54,7 +54,7 @@ APK universal assinado (arm64 + x86_64):
 ## Como usar
 
 1. Na primeira abertura, conclua o setup (notificações, bateria, acesso a arquivos e pasta de downloads)
-2. Em **Ajustes → Integrações**, configure sua chave da API do Real-Debrid
+2. (Opcional) Em **Ajustes → Integrações**, configure sua chave do Real-Debrid (ou outro serviço debrid) — sem ela dá pra baixar via Torrent ou Direto
 3. Em **Ajustes → Fontes de download**, adicione fontes de download (URLs de catálogo `.json`, formato Hydra)
 4. Em **Catálogo**, busque um jogo e abra a página dele
 5. Escolha um repack e toque em **Baixar** — depois escolha o método (Real-Debrid, Torrent ou Direto)
