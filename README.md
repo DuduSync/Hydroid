@@ -68,23 +68,6 @@ APK universal assinado (arm64 + x86_64):
 
 O Real-Debrid é o motor recomendado de downloads: ele processa torrents e hosters no cloud e devolve um link direto de alta velocidade para o aparelho. Pegue sua chave em [real-debrid.com/apitoken](https://real-debrid.com/apitoken) e cole em **Ajustes → Integrações**.
 
-## Arquitetura
-
-```
-android/app/src/main/java/gg/hydroid/app/
-├── MainActivity.kt       # navegação e tema
-├── data/
-│   ├── api/              # Steam, Hydra Cloud, Real-Debrid e fontes
-│   ├── log/              # log interno com rotação
-│   ├── model/            # modelos serializáveis
-│   └── store/            # persistência local (JSON)
-├── download/             # engines: Real-Debrid, HTTP direto e torrent nativo (libtorrent4j)
-│                         # + extração .zip/.rar e foreground service de notificação
-└── ui/                   # telas Compose (Catálogo, Biblioteca, Downloads, Ajustes, Setup)
-```
-
-Fluxo de um download: busca na API pública da Steam → repacks do jogo via API do Hydra Cloud (mesmo endpoint do launcher desktop) → escolha do método → o Real-Debrid processa o torrent no cloud e devolve um link direto, ou o torrent baixa direto do swarm no aparelho → após terminar, extração automática (opcional) e movimentação para a pasta escolhida.
-
 ## Aviso legal
 
 O Hydroid não hospeda, indexa nem distribui nenhum conteúdo. As fontes de download são configuradas pelo próprio usuário e os downloads acontecem a partir delas. Baixe apenas conteúdo que você tem o direito de baixar. Marcas e jogos citados pertencem aos seus respectivos donos.
