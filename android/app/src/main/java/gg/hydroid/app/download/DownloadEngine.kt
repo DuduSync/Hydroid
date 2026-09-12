@@ -71,7 +71,8 @@ object DownloadEngine {
                 }
                 downloadFile(context, id, title, directUrl, methodTag)
             } catch (e: CancellationException) {
-                AppLog.i("Download", "cancelado pelo usuário: $title")
+                AppLog.i("Download", if (paused.contains(id)) "pausado: $title"
+                    else "cancelado pelo usuário: $title")
                 throw e
             } catch (e: Exception) {
                 AppLog.e("Download", "falhou: $title", e)
