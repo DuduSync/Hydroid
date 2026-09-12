@@ -1,6 +1,8 @@
 package gg.hydroid.app.download
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import gg.hydroid.app.data.api.HttpClient
 import gg.hydroid.app.data.api.RealDebridApi
 import gg.hydroid.app.data.model.ActiveDownload
@@ -25,17 +27,80 @@ object DownloadEngine {
     @Volatile private var cancelled = setOf<String>()
     @Volatile private var paused = setOf<String>()
 
+    private data class Queued(val id: String, val title: String, val uri: String, val method: DownloadMethod)
+    private val queue = mutableListOf<Queued>()
+    private val busyIds = mutableSetOf<String>()
+    @Volatile private var pumping = false
+
     fun start(context: Context, id: String, title: String, uri: String, method: DownloadMethod) {
-        // evita cards duplicados do mesmo titulo
+        // mesmo titulo: substitui o download anterior (os dois escreveriam no MESMO arquivo)
         AppStore.downloads.value
             .filter { it.title == title && it.stage !in setOf("concluido", "erro") }
-            .forEach { AppStore.removeDownload(it.id) }
+            .forEach { cancel(it.id) }
+        synchronized(this) {
+            queue.removeAll { it.id == id }
+            queue.add(Queued(id, title, uri, method))
+        }
+        post(ActiveDownload(id, title, stage = "na fila", method = tagOf(method), uri = uri))
+        pump()
+    }
+
+    // chamado quando a rede muda (ex.: Wi-Fi voltou); os posts tambem chamam
+    fun onConnectivityChanged() = pump()
+
+    // usado quando o usuario muda as regras da fila (ex.: limite de simultaneos)
+    fun kickQueue() = pump()
+
+    // processa a fila respeitando o limite de simultaneos e o "so Wi-Fi"
+    private fun pump() {
+        synchronized(this) {
+            if (pumping) return
+            pumping = true
+            try {
+                if (AppStore.wifiOnly.value && !isUnmetered()) {
+                    queue.forEach { q ->
+                        val cur = AppStore.downloads.value.firstOrNull { it.id == q.id }
+                        if (cur != null && cur.stage != "aguardando Wi-Fi") {
+                            post(cur.copy(stage = "aguardando Wi-Fi", speedBps = 0))
+                        }
+                    }
+                    return
+                }
+                val max = AppStore.maxConcurrent.value
+                var busy = busyIds.size
+                while (queue.isNotEmpty() && (max <= 0 || busy < max)) {
+                    launchDownload(queue.removeAt(0))
+                    busy++
+                }
+            } finally {
+                pumping = false
+            }
+        }
+    }
+
+    // libera uma vaga da fila quando a engine (ex.: torrent) termina
+    fun onEngineDone(id: String) {
+        synchronized(this) { busyIds.remove(id) }
+        pump()
+    }
+
+    private fun isUnmetered(): Boolean = runCatching {
+        val cm = AppStore.appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val net = cm.activeNetwork ?: return false
+        val caps = cm.getNetworkCapabilities(net) ?: return false
+        caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+    }.getOrDefault(false)
+
+    private fun launchDownload(q: Queued) {
+        val context = AppStore.appContext
+        val (id, title, uri, method) = q
         if (method == DownloadMethod.TORRENT) {
             if (!uri.startsWith("magnet:")) {
                 post(ActiveDownload(id, title, stage = "erro", method = "torrent",
                     error = "Torrent precisa de um magnet"))
                 return
             }
+            synchronized(this) { busyIds.add(id) }
             TorrentEngine.start(context, id, title, uri)
             return
         }
@@ -58,6 +123,7 @@ object DownloadEngine {
             return
         }
         val methodTag = tagOf(method)
+        synchronized(this) { busyIds.add(id) }
         post(ActiveDownload(id, title, stage = "resolvendo", method = methodTag, uri = uri))
         AppLog.i("Download", "start: $title [$methodTag] uri=${uri.take(80)}")
         jobs[id] = scope.launch {
@@ -85,6 +151,7 @@ object DownloadEngine {
     fun cancel(id: String) {
         val dl = AppStore.downloads.value.firstOrNull { it.id == id }
         cancelled = cancelled + id
+        synchronized(this) { queue.removeAll { it.id == id } }
         jobs.remove(id)?.cancel()
         TorrentEngine.cancel(id)
         // descarta o arquivo parcial do download HTTP
@@ -93,13 +160,17 @@ object DownloadEngine {
                 File(AppStore.targetDir(AppStore.appContext), "${safeName(dl.title)}.bin").delete()
             }
         }
+        synchronized(this) { busyIds.remove(id) }
         AppStore.downloads.value.filter { it.id == "cloud-$id" }.forEach { AppStore.removeDownload(it.id) }
         AppStore.removeDownload(id)
+        pump()
     }
 
     fun pause(id: String) {
         val dl = AppStore.downloads.value.firstOrNull { it.id == id } ?: return
         paused = paused + id
+        synchronized(this) { queue.removeAll { it.id == id } }
+        synchronized(this) { busyIds.remove(id) }
         jobs.remove(id)?.cancel()
         AppStore.downloads.value.filter { it.id == "cloud-$id" }.forEach { AppStore.removeDownload(it.id) }
         TorrentEngine.pause(id)
@@ -123,6 +194,35 @@ object DownloadEngine {
         }
     }
 
+    // extrai manualmente um arquivo ja baixado (.zip/.rar) do card concluido
+    fun extractNow(id: String) {
+        val dl = AppStore.downloads.value.firstOrNull { it.id == id } ?: return
+        val path = dl.savePath ?: return
+        val archive = File(path)
+        if (!archive.isFile) return
+        scope.launch {
+            post(ActiveDownload(id, dl.title, stage = "extraindo", method = dl.method,
+                progress = 1f, savePath = path, uri = dl.uri))
+            val parent = archive.parentFile!!
+            val result = runCatching { ArchiveExtractor.extract(archive, parent) }
+            if (result.isFailure) {
+                post(ActiveDownload(id, dl.title, stage = "concluido", method = dl.method,
+                    progress = 1f, savePath = path, uri = dl.uri,
+                    error = "Extração falhou: ${result.exceptionOrNull()?.message}"))
+                return@launch
+            }
+            val created = ArchiveExtractor.topLevelEntries(archive)
+                .map { File(parent, it) }
+                .filter { it.exists() }
+            if (AppStore.deleteArchive.value) archive.delete()
+            val leftover = if (archive.exists()) listOf(archive) else emptyList()
+            val current = if (created.size == 1) created.first() else parent
+            post(ActiveDownload(id, dl.title, stage = "concluido", method = dl.method,
+                progress = 1f, savePath = current.absolutePath, uri = dl.uri,
+                savedPaths = (leftover + created).map { it.absolutePath }))
+        }
+    }
+
     // chamado pelos engines ao concluir: extracao automatica e/ou mover para a pasta escolhida
     fun afterDownload(
         context: Context,
@@ -136,14 +236,16 @@ object DownloadEngine {
         if (!doExtract && !moveToTarget) return
         scope.launch {
             var current = File(savePath)
+            var saved = listOf(current)
 
             if (doExtract) {
                 val archive = findArchive(current)
                 if (archive != null) {
                     post(ActiveDownload(id, title, stage = "extraindo", method = methodTag,
                         progress = 1f, savePath = savePath))
+                    val parent = archive.parentFile!!
                     val result = runCatching {
-                        ArchiveExtractor.extract(archive, archive.parentFile!!)
+                        ArchiveExtractor.extract(archive, parent)
                     }
                     if (result.isFailure) {
                         post(ActiveDownload(id, title, stage = "concluido", method = methodTag,
@@ -151,8 +253,18 @@ object DownloadEngine {
                             error = "Extração falhou: ${result.exceptionOrNull()?.message}"))
                         return@launch
                     }
+                    // guarda SO o que este download criou (o Apagar nao pode levar a pasta toda)
+                    val created = ArchiveExtractor.topLevelEntries(archive)
+                        .map { File(parent, it) }
+                        .filter { it.exists() }
                     if (AppStore.deleteArchive.value) archive.delete()
-                    current = archive.parentFile ?: current
+                    val leftover = if (archive.exists()) listOf(archive) else emptyList()
+                    if (created.isNotEmpty()) {
+                        saved = leftover + created
+                        current = if (created.size == 1) created.first() else parent
+                    } else {
+                        current = parent
+                    }
                 }
             }
 
@@ -161,7 +273,10 @@ object DownloadEngine {
                 if (current.canonicalPath != target.canonicalPath) {
                     val dest = uniqueDest(File(target, current.name))
                     runCatching { moveRecursive(current, dest) }
-                        .onSuccess { current = dest }
+                        .onSuccess {
+                            current = dest
+                            saved = listOf(dest)
+                        }
                         .onFailure {
                             android.util.Log.e("HydroidMove", "mover falhou: ${it.message}", it)
                         }
@@ -169,7 +284,8 @@ object DownloadEngine {
             }
 
             post(ActiveDownload(id, title, stage = "concluido", method = methodTag,
-                progress = 1f, savePath = current.absolutePath))
+                progress = 1f, savePath = current.absolutePath,
+                savedPaths = saved.map { it.absolutePath }))
         }
     }
 
@@ -209,9 +325,13 @@ object DownloadEngine {
         // nao deixa progresso atrasado sobrescrever pausado/cancelado
         if (paused.contains(dl.id) && dl.stage != "pausado") return
         if (cancelled.contains(dl.id) && dl.stage != "erro") return
+        if (dl.stage == "concluido" || dl.stage == "erro" || dl.stage == "pausado") {
+            synchronized(this) { busyIds.remove(dl.id) }
+        }
         scope.launch(Dispatchers.Main) {
             AppStore.upsertDownload(dl)
             notifyService(dl)
+            pump()
         }
     }
 
@@ -305,6 +425,8 @@ object DownloadEngine {
                 var done = startAt
                 var lastMs = System.currentTimeMillis()
                 var lastBytes = startAt
+                var tokens = 0.0
+                var lastRefill = System.currentTimeMillis()
                 java.io.FileOutputStream(outFile, true).use { out ->
                     while (true) {
                         if (cancelled.contains(id) || paused.contains(id)) return@withContext
@@ -312,6 +434,24 @@ object DownloadEngine {
                         if (n == -1) break
                         out.write(buf, 0, n)
                         done += n
+                        // limite de velocidade (KB/s) por download: token bucket de ~1s
+                        val limit = AppStore.speedLimitKbps.value
+                        if (limit > 0) {
+                            val rate = limit * 1024.0
+                            val nowMs = System.currentTimeMillis()
+                            tokens = minOf(rate, tokens + (nowMs - lastRefill) * rate / 1000.0)
+                            lastRefill = nowMs
+                            if (tokens < n) {
+                                val needMs = ((n - tokens) * 1000.0 / rate).toLong()
+                                try {
+                                    Thread.sleep(needMs)
+                                } catch (_: InterruptedException) {}
+                                tokens = 0.0
+                                lastRefill = System.currentTimeMillis()
+                            } else {
+                                tokens -= n
+                            }
+                        }
                         val now = System.currentTimeMillis()
                         if (now - lastMs >= 800) {
                             val speed = (done - lastBytes) * 1000 / (now - lastMs)

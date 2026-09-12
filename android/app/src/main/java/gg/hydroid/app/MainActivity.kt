@@ -61,6 +61,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             HydroidTheme {
+                LaunchedEffect(Unit) { gg.hydroid.app.data.update.UpdateManager.check() }
+                gg.hydroid.app.ui.UpdateDialog()
                 val setupDone by AppStore.setupDone.collectAsState()
                 if (!setupDone) SetupScreen { AppStore.setSetupDone(true) }
                 else HydroidRoot()

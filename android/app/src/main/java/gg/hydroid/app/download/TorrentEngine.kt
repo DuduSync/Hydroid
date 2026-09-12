@@ -13,12 +13,14 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.libtorrent4j.AlertListener
 import org.libtorrent4j.SessionManager
+import org.libtorrent4j.SettingsPack
 import org.libtorrent4j.Sha1Hash
 import org.libtorrent4j.alerts.AddTorrentAlert
 import org.libtorrent4j.alerts.Alert
 import org.libtorrent4j.alerts.AlertType
 import org.libtorrent4j.alerts.TorrentErrorAlert
 import org.libtorrent4j.swig.remove_flags_t
+import org.libtorrent4j.swig.settings_pack
 import org.libtorrent4j.swig.torrent_flags_t
 import java.io.File
 
@@ -36,6 +38,39 @@ object TorrentEngine {
     private var pendingId: String? = null
     private var pendingTitle: String? = null
 
+    // trackers publicos injetados nos magnets (DHT sozinho rende pouco no Android)
+    private val PUBLIC_TRACKERS = listOf(
+        "udp://tracker.opentrackr.org:1337/announce",
+        "udp://open.stealth.si:80/announce",
+        "udp://tracker.torrent.eu.org:451/announce",
+        "udp://exodus.desync.com:6969/announce",
+        "udp://tracker.openbittorrent.com:6969/announce",
+        "udp://opentracker.i2p.rocks:6969/announce",
+        "udp://tracker.internetwarriors.net:1337/announce",
+        "udp://tracker.tiny-vps.com:6969/announce",
+        "udp://tracker.dler.org:6969/announce",
+        "udp://open.demonii.com:1337/announce"
+    )
+
+    private fun withTrackers(magnet: String): String {
+        if (!magnet.startsWith("magnet:")) return magnet
+        val extra = PUBLIC_TRACKERS
+            .filter { !magnet.contains(it) && !magnet.contains(java.net.URLEncoder.encode(it, "UTF-8")) }
+            .joinToString("") { "&tr=" + java.net.URLEncoder.encode(it, "UTF-8") }
+        return magnet + extra
+    }
+
+    // limite de download do libtorrent em KB/s (0 = sem limite)
+    fun applySpeedLimit() {
+        val mgr = manager ?: return
+        runCatching {
+            val kbps = AppStore.speedLimitKbps.value
+            val pack = SettingsPack()
+            pack.setInteger(settings_pack.int_types.download_rate_limit.swigValue(), if (kbps > 0) kbps * 1024 else 0)
+            mgr.applySettings(pack)
+        }.onFailure { AppLog.w("Torrent", "limite de velocidade falhou: ${it.message}") }
+    }
+
     fun start(context: Context, id: String, title: String, magnet: String) {
         appContext = context.applicationContext
         val mgr = ensureSession() ?: run {
@@ -52,7 +87,7 @@ object TorrentEngine {
         pendingTitle = title
         post(ActiveDownload(id, title, stage = "conectando ao swarm", method = "torrent"))
         try {
-            mgr.download(magnet, AppStore.torrentsDir(context), torrent_flags_t())
+            mgr.download(withTrackers(magnet), AppStore.torrentsDir(context), torrent_flags_t())
         } catch (e: Exception) {
             post(ActiveDownload(id, title, stage = "erro", method = "torrent",
                 error = "Magnet inválido: ${e.message}"))
@@ -123,12 +158,14 @@ object TorrentEngine {
                             pendingId = null
                             post(ActiveDownload(id, pendingTitle ?: "Torrent", stage = "erro",
                                 method = "torrent", error = "Erro no torrent: ${alert.message()}"))
+                            DownloadEngine.onEngineDone(id)
                         }
                     }
                 }
             })
             mgr.start()
             manager = mgr
+            applySpeedLimit()
             AppLog.i("Torrent", "sessão jlibtorrent iniciada")
             mgr
         } catch (e: Throwable) {
@@ -169,7 +206,9 @@ object TorrentEngine {
                     progress = st.progress(),
                     bytesDownloaded = done,
                     totalBytes = total,
-                    speedBps = st.downloadPayloadRate().toLong()
+                    speedBps = st.downloadPayloadRate().toLong(),
+                    peers = st.numPeers(),
+                    seeds = st.numSeeds()
                 ))
                 if (System.currentTimeMillis() - lastLog > 15000) {
                     lastLog = System.currentTimeMillis()
@@ -183,6 +222,7 @@ object TorrentEngine {
                     AppLog.i("Torrent", "concluído: $title -> $savePath")
                     post(ActiveDownload(id, title, stage = "concluido", method = "torrent",
                         progress = 1f, savePath = savePath))
+                    DownloadEngine.onEngineDone(id)
                     DownloadEngine.afterDownload(context(), id, title, savePath, "torrent", moveToTarget = true)
                     break
                 }

@@ -2,4 +2,5 @@
 <paths>
     <files-path name="logs" path="logs/" />
     <files-path name="torrents" path="torrents/" />
+    <cache-path name="updates" path="update/" />
 </paths>

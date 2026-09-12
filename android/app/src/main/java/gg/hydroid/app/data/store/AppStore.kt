@@ -46,6 +46,15 @@ object AppStore {
     private val _downloadDir = MutableStateFlow("")
     val downloadDir: StateFlow<String> = _downloadDir
 
+    private val _maxConcurrent = MutableStateFlow(2)
+    val maxConcurrent: StateFlow<Int> = _maxConcurrent
+
+    private val _wifiOnly = MutableStateFlow(false)
+    val wifiOnly: StateFlow<Boolean> = _wifiOnly
+
+    private val _speedLimitKbps = MutableStateFlow(0)
+    val speedLimitKbps: StateFlow<Int> = _speedLimitKbps
+
     private val _hydraAuth = MutableStateFlow<HydraAuth?>(null)
     val hydraAuth: StateFlow<HydraAuth?> = _hydraAuth
 
@@ -73,6 +82,9 @@ object AppStore {
         _autoExtract.value = prefs.autoExtract
         _deleteArchive.value = prefs.deleteArchive
         _downloadDir.value = prefs.downloadDir
+        _maxConcurrent.value = prefs.maxConcurrent
+        _wifiOnly.value = prefs.wifiOnly
+        _speedLimitKbps.value = prefs.speedLimitKbps
     }
 
     @kotlinx.serialization.Serializable
@@ -80,12 +92,18 @@ object AppStore {
         val setupDone: Boolean = false,
         val autoExtract: Boolean = false,
         val deleteArchive: Boolean = false,
-        val downloadDir: String = ""
+        val downloadDir: String = "",
+        val maxConcurrent: Int = 2,
+        val wifiOnly: Boolean = false,
+        val speedLimitKbps: Int = 0
     )
 
     private fun savePrefs() = save(
         "prefs.json",
-        Prefs(_setupDone.value, _autoExtract.value, _deleteArchive.value, _downloadDir.value)
+        Prefs(
+            _setupDone.value, _autoExtract.value, _deleteArchive.value, _downloadDir.value,
+            _maxConcurrent.value, _wifiOnly.value, _speedLimitKbps.value
+        )
     )
 
     fun setSetupDone(done: Boolean) { _setupDone.value = done; savePrefs() }
@@ -102,6 +120,14 @@ object AppStore {
         savePrefs()
     }
     fun setDownloadDir(path: String) { _downloadDir.value = path; savePrefs() }
+
+    // 0 = sem limite de downloads simultaneos
+    fun setMaxConcurrent(v: Int) { _maxConcurrent.value = v.coerceIn(0, 5); savePrefs() }
+
+    fun setWifiOnly(v: Boolean) { _wifiOnly.value = v; savePrefs() }
+
+    // 0 = sem limite de velocidade
+    fun setSpeedLimitKbps(v: Int) { _speedLimitKbps.value = v.coerceAtLeast(0); savePrefs() }
 
     // destino dos downloads: pasta escolhida pelo usuario ou padrao do app
     fun targetDir(context: Context): File {

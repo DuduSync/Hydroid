@@ -1,5 +1,9 @@
 package gg.hydroid.app.ui
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -42,6 +46,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 import gg.hydroid.app.data.api.HydraCloudApi
 import gg.hydroid.app.data.api.RealDebridApi
 import gg.hydroid.app.data.model.ActiveDownload
@@ -181,7 +189,50 @@ fun DownloadsScreen() {
 
 @Composable
 private fun DownloadCard(dl: ActiveDownload) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val badge = downloadMethodBadge(dl.method)
+    val path = dl.savePath
+    val isArchive = path != null &&
+        (path.lowercase().endsWith(".zip") || path.lowercase().endsWith(".rar"))
+    var confirmDelete by remember { mutableStateOf(false) }
+    var deleteSize by remember { mutableStateOf<String?>(null) }
+
+    if (confirmDelete && path != null) {
+        val targets = dl.savedPaths.ifEmpty { listOf(path) }
+        LaunchedEffect(path, dl.savedPaths) {
+            deleteSize = withContext(Dispatchers.IO) {
+                runCatching { formatBytes(targets.sumOf { folderSize(File(it)) }) }.getOrNull()
+            }
+        }
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            icon = { Icon(Icons.Filled.Delete, null, tint = MaterialTheme.colorScheme.error) },
+            title = { Text("Apagar ${dl.title}?") },
+            text = {
+                Text(
+                    "Os arquivos baixados${deleteSize?.let { " ($it)" } ?: ""} serão removidos " +
+                        "do aparelho. Não dá para desfazer."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmDelete = false
+                    scope.launch(Dispatchers.IO) {
+                        targets.forEach { runCatching { File(it).deleteRecursively() } }
+                        withContext(Dispatchers.Main) {
+                            DownloadEngine.cancel(dl.id)
+                            Toast.makeText(context, "Arquivos apagados", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }) { Text("Apagar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDelete = false }) { Text("Cancelar") }
+            }
+        )
+    }
+
     ElevatedCard(
         colors = CardDefaults.elevatedCardColors(
             containerColor = if (dl.stage == "erro") MaterialTheme.colorScheme.errorContainer
@@ -215,16 +266,23 @@ private fun DownloadCard(dl: ActiveDownload) {
             Spacer(Modifier.height(8.dp))
             Text(
                 when (dl.stage) {
-                    "concluido" -> "Concluído"
+                    "concluido" -> dl.error ?: "Concluído"
                     "erro" -> dl.error ?: "Erro desconhecido"
-                    "baixando" -> "${formatBytes(dl.speedBps)}/s  ·  ${formatBytes(dl.bytesDownloaded)} de ${formatBytes(dl.totalBytes)}"
+                    "baixando" -> buildString {
+                        append("${formatBytes(dl.speedBps)}/s  ·  ")
+                        append("${formatBytes(dl.bytesDownloaded)} de ${formatBytes(dl.totalBytes)}")
+                        formatEta(dl)?.let { append("  ·  $it") }
+                        if (dl.method == "torrent" && (dl.peers > 0 || dl.seeds > 0)) {
+                            append("  ·  ${dl.seeds} seeds / ${dl.peers} peers")
+                        }
+                    }
                     else -> dl.stage.replaceFirstChar { it.uppercase() }
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = if (dl.stage == "erro") MaterialTheme.colorScheme.onErrorContainer
                 else MaterialTheme.colorScheme.onSurfaceVariant
             )
-            if (dl.stage != "erro") {
+            if (dl.stage != "erro" && dl.stage != "aguardando Wi-Fi") {
                 Spacer(Modifier.height(10.dp))
                 LinearProgressIndicator(
                     progress = { dl.progress.coerceIn(0f, 1f) },
@@ -232,9 +290,9 @@ private fun DownloadCard(dl: ActiveDownload) {
                     strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
                 )
             }
-            Spacer(Modifier.height(4.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (dl.stage == "concluido" && dl.savePath != null) {
+            if (dl.stage == "concluido" && path != null) {
+                Spacer(Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Filled.Folder, null,
                         modifier = Modifier.size(16.dp),
@@ -242,16 +300,21 @@ private fun DownloadCard(dl: ActiveDownload) {
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
-                        dl.savePath.substringAfterLast('/'),
+                        path.substringAfterLast('/'),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
                     )
-                } else {
-                    Spacer(Modifier.weight(1f))
                 }
+            }
+            Spacer(Modifier.height(4.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.End,
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 when {
                     dl.stage == "pausado" -> TextButton(onClick = { DownloadEngine.resume(dl.id) }) {
                         Text("Continuar")
@@ -263,12 +326,61 @@ private fun DownloadCard(dl: ActiveDownload) {
                         dl.stage == "conectando ao swarm" || dl.stage.startsWith("cloud") ->
                         TextButton(onClick = { DownloadEngine.pause(dl.id) }) { Text("Pausar") }
                 }
+                if (dl.stage == "concluido" && path != null && File(path).exists()) {
+                    TextButton(onClick = { openFolder(context, path) }) { Text("Abrir pasta") }
+                }
+                if (dl.stage == "concluido" && isArchive) {
+                    TextButton(onClick = { DownloadEngine.extractNow(dl.id) }) { Text("Extrair") }
+                }
+                if (dl.stage == "concluido" && path != null) {
+                    TextButton(onClick = { confirmDelete = true }) { Text("Apagar") }
+                }
                 TextButton(onClick = { DownloadEngine.cancel(dl.id) }) {
                     Text(if (dl.stage == "concluido") "Limpar" else "Cancelar")
                 }
             }
         }
     }
+}
+
+// tempo restante estimado a partir da velocidade atual
+private fun formatEta(dl: ActiveDownload): String? {
+    if (dl.speedBps <= 0 || dl.totalBytes <= 0) return null
+    val remaining = dl.totalBytes - dl.bytesDownloaded
+    if (remaining <= 0) return null
+    val secs = remaining / dl.speedBps
+    return "~" + when {
+        secs < 60 -> "${secs}s"
+        secs < 3600 -> "${secs / 60} min"
+        secs < 86400 -> "${secs / 3600}h${(secs % 3600) / 60}min"
+        else -> "${secs / 86400}d"
+    }
+}
+
+private fun folderSize(f: File): Long =
+    if (f.isFile) f.length() else f.walkBottomUp().filter { it.isFile }.sumOf { it.length() }
+
+// abre a pasta do download no gerenciador de arquivos (DocumentsUI)
+private fun openFolder(context: Context, savePath: String) {
+    val f = File(savePath)
+    val target = if (f.isFile) f.parentFile ?: f else f
+    val base = "/storage/emulated/0/"
+    if (!target.absolutePath.startsWith(base)) {
+        Toast.makeText(context, "Pasta fora do armazenamento principal", Toast.LENGTH_SHORT).show()
+        return
+    }
+    val rel = "primary:" + target.absolutePath.removePrefix(base)
+    val uri = Uri.parse(
+        "content://com.android.externalstorage.documents/document/" + Uri.encode(rel)
+    )
+    val intent = Intent(Intent.ACTION_VIEW).apply {
+        setDataAndType(uri, "vnd.android.document/directory")
+    }
+    runCatching { context.startActivity(intent) }
+        .onFailure {
+            android.util.Log.e("HydroidFolder", "abrir pasta falhou: ${uri}", it)
+            Toast.makeText(context, "Nenhum app de arquivos encontrado", Toast.LENGTH_SHORT).show()
+        }
 }
 
 // ---------- Ajustes ----------

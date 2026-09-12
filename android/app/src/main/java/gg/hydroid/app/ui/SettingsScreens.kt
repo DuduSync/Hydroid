@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Folder
@@ -61,6 +62,8 @@ import gg.hydroid.app.data.model.DownloadSource
 import gg.hydroid.app.data.model.HydraUser
 import gg.hydroid.app.data.store.AppStore
 import gg.hydroid.app.data.store.StorageUtil
+import gg.hydroid.app.download.DownloadEngine
+import gg.hydroid.app.download.TorrentEngine
 import kotlinx.coroutines.launch
 
 // ===== DOACOES: link usado no botao "Apoiar com Pix" dos creditos =====
@@ -127,7 +130,7 @@ private fun SettingsHome(onOpen: (SettingsPage) -> Unit) {
         item {
             NavRow(
                 Icons.Filled.Favorite, "Créditos",
-                "Hydroid 0.5 · fork de estudo do Hydra (MIT)"
+                "Hydroid 0.6 · fork de estudo do Hydra (MIT)"
             ) { onOpen(SettingsPage.CREDITOS) }
         }
     }
@@ -675,6 +678,41 @@ private fun SwitchRow(
     }
 }
 
+// linha com valor a direita que abre um dialogo de opcoes
+@Composable
+private fun PickerRow(
+    title: String,
+    subtitle: String,
+    value: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Icon(
+            Icons.AutoMirrored.Filled.KeyboardArrowRight, null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
 // ---------- Integrações ----------
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -988,7 +1026,11 @@ private fun AppConfigPage(onBack: () -> Unit) {
     val downloadDir by AppStore.downloadDir.collectAsState()
     val autoExtract by AppStore.autoExtract.collectAsState()
     val deleteArchive by AppStore.deleteArchive.collectAsState()
+    val wifiOnly by AppStore.wifiOnly.collectAsState()
+    val maxConcurrent by AppStore.maxConcurrent.collectAsState()
+    val speedLimitKbps by AppStore.speedLimitKbps.collectAsState()
     var folderMsg by remember { mutableStateOf<String?>(null) }
+    var picker by remember { mutableStateOf<String?>(null) }
     val folderPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
@@ -1059,7 +1101,94 @@ private fun AppConfigPage(onBack: () -> Unit) {
                 enabled = autoExtract
             ) { AppStore.setDeleteArchive(it) }
         }
+
+        SettingsSection(
+            icon = Icons.Filled.Download,
+            title = "Downloads",
+            subtitle = "Fila, rede e velocidade"
+        ) {
+            SwitchRow(
+                "Só baixar no Wi-Fi",
+                "Downloads ficam aguardando até conectar numa rede Wi-Fi",
+                wifiOnly
+            ) {
+                AppStore.setWifiOnly(it)
+                DownloadEngine.kickQueue()
+            }
+            PickerRow(
+                "Downloads simultâneos",
+                "Quantos downloads rodam ao mesmo tempo",
+                if (maxConcurrent == 0) "Sem limite" else maxConcurrent.toString()
+            ) { picker = "concurrent" }
+            PickerRow(
+                "Limite de velocidade",
+                "Velocidade máxima por download",
+                speedLimitKbpsLabel(speedLimitKbps)
+            ) { picker = "speed" }
+        }
     }
+
+    if (picker == "concurrent") {
+        AlertDialog(
+            onDismissRequest = { picker = null },
+            title = { Text("Downloads simultâneos") },
+            text = {
+                Column {
+                    listOf(1, 2, 3, 0).forEach { n ->
+                        Text(
+                            if (n == 0) "Sem limite" else n.toString(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    AppStore.setMaxConcurrent(n)
+                                    picker = null
+                                    DownloadEngine.kickQueue()
+                                }
+                                .padding(vertical = 12.dp),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (maxConcurrent == n) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { picker = null }) { Text("Fechar") } }
+        )
+    }
+
+    if (picker == "speed") {
+        AlertDialog(
+            onDismissRequest = { picker = null },
+            title = { Text("Limite de velocidade") },
+            text = {
+                Column {
+                    listOf(0, 512, 1024, 2048, 5120, 10240).forEach { v ->
+                        Text(
+                            speedLimitKbpsLabel(v),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    AppStore.setSpeedLimitKbps(v)
+                                    TorrentEngine.applySpeedLimit()
+                                    picker = null
+                                }
+                                .padding(vertical = 12.dp),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (speedLimitKbps == v) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { picker = null }) { Text("Fechar") } }
+        )
+    }
+}
+
+private fun speedLimitKbpsLabel(kbps: Int): String = when {
+    kbps <= 0 -> "Sem limite"
+    kbps < 1024 -> "$kbps KB/s"
+    else -> "${kbps / 1024} MB/s"
 }
 
 // ---------- Logs ----------
@@ -1133,7 +1262,7 @@ private fun CreditosPage(onBack: () -> Unit) {
     SettingsPageScaffold("Créditos", onBack) {
         SettingsSection(
             icon = Icons.Filled.Favorite,
-            title = "Hydroid 0.5",
+            title = "Hydroid 0.6",
             subtitle = "fork de estudo do Hydra Launcher (MIT)"
         ) {
             Text(

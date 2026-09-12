@@ -17,6 +17,26 @@ object ArchiveExtractor {
         return destDir
     }
 
+    // nomes do primeiro nivel do arquivo (ex.: ["Hello-World-master"]), para saber
+    // exatamente o que este download criou no destino
+    fun topLevelEntries(archive: File): List<String> = runCatching {
+        when (archive.extension.lowercase()) {
+            "zip" -> java.util.zip.ZipFile(archive).use { zf ->
+                zf.entries().asSequence().mapNotNull { e ->
+                    val n = e.name.replace('\\', '/').trimStart('/')
+                    n.substringBefore('/').takeIf { it.isNotBlank() }
+                }.distinct().toList()
+            }
+            "rar" -> com.github.junrar.Archive(archive).use { ar ->
+                ar.fileHeaders.mapNotNull { h ->
+                    val n = h.fileName.replace('\\', '/').trimStart('/')
+                    n.substringBefore('/').takeIf { it.isNotBlank() }
+                }.distinct().toList()
+            }
+            else -> emptyList()
+        }
+    }.getOrDefault(emptyList())
+
     private fun extractZip(zip: File, destDir: File) {
         val destCanonical = destDir.canonicalFile
         ZipInputStream(zip.inputStream().buffered()).use { zis ->

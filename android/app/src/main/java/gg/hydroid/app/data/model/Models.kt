@@ -114,7 +114,10 @@ data class ActiveDownload(
     val speedBps: Long = 0,
     val error: String? = null,
     val savePath: String? = null,
-    val uri: String? = null
+    val uri: String? = null,
+    val peers: Int = 0,
+    val seeds: Int = 0,
+    val savedPaths: List<String> = emptyList()
 )
 
 @Serializable
