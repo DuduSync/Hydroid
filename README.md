@@ -93,7 +93,6 @@ O Hydroid não hospeda, indexa nem distribui nenhum conteúdo. As fontes de down
 
 - [Hydra Launcher](https://github.com/hydralauncher/hydra) — projeto original (MIT); grande parte da lógica, das APIs e do ecossistema de fontes vem dele
 - Port Android por [DuduSync](https://github.com/DuduSync)
-- Doações (Pix): <a href="https://nubank.com.br/cobrar/7rfap/6aa35e97-c27c-479b-b74b-dbd122db9877"><img src="https://img.shields.io/badge/Nubank-820AD1?style=flat-square&logo=nubank&logoColor=white" alt="Nubank"/></a>
 
 ## Apoie o projeto
 
