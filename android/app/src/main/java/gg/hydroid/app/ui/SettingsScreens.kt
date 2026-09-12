@@ -1521,39 +1521,6 @@ private fun CreditosPage(onBack: () -> Unit) {
                 }
             }
             Spacer(Modifier.height(14.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    tr("Telegram oficial"),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.width(10.dp))
-                Box(
-                    Modifier
-                        .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(8.dp))
-                        .clickable {
-                            AppLog.i("UI", "creditos: abrir Telegram @HydroidOFC")
-                            uriHandler.openUri(TELEGRAM_URL)
-                        }
-                        .padding(horizontal = 10.dp, vertical = 5.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Filled.Chat, null,
-                            modifier = Modifier.size(15.dp),
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            "@HydroidOFC",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
-                }
-            }
-            Spacer(Modifier.height(14.dp))
             Button(
                 onClick = {
                     AppLog.i("UI", "creditos: apoiar com Pix")
@@ -1565,6 +1532,36 @@ private fun CreditosPage(onBack: () -> Unit) {
                 Icon(Icons.Filled.Favorite, null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(if (DONATION_URL.isNotBlank()) tr("Apoiar com Pix") else tr("Doações em breve"))
+            }
+        }
+
+        // card dedicado: canal oficial no Telegram
+        SettingsSection(
+            icon = Icons.Filled.Chat,
+            title = tr("Comunidade no Telegram"),
+            subtitle = tr("Novidades, avisos e suporte do projeto")
+        ) {
+            Text(
+                tr("Acompanhe as atualizações do Hydroid e tire dúvidas no canal oficial:"),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(12.dp))
+            Button(
+                onClick = {
+                    AppLog.i("UI", "creditos: entrar no Telegram @HydroidOFC")
+                    uriHandler.openUri(TELEGRAM_URL)
+                },
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Icon(Icons.Filled.Chat, null, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    "${tr("Entrar no Telegram")} · @HydroidOFC",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }

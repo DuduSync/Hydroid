@@ -345,6 +345,11 @@ private val EN = mapOf<String, String>(
     "Recomendados" to "Recommended",
     "Ver no ProtonDB" to "View on ProtonDB",
     "%s relatos" to "%s reports",
+    "Acompanhe as atualizações do Hydroid e tire dúvidas no canal oficial:" to
+        "Follow Hydroid updates and get help in the official channel:",
+    "Comunidade no Telegram" to "Telegram community",
+    "Entrar no Telegram" to "Join Telegram",
+    "Novidades, avisos e suporte do projeto" to "Project news, announcements and support",
     "Telegram oficial" to "Official Telegram",
     "Tema" to "Theme",
     "Visual do aplicativo" to "App appearance",
