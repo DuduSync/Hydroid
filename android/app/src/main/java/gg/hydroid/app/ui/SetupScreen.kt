@@ -3,6 +3,7 @@ package gg.hydroid.app.ui
 import gg.hydroid.app.ui.theme.glassAwareElevation
 
 import gg.hydroid.app.data.i18n.tr
+import gg.hydroid.app.data.log.AppLog
 
 import android.Manifest
 import android.content.Context
@@ -67,7 +68,10 @@ fun SetupScreen(onDone: () -> Unit) {
 
     val notifLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { notifGranted = hasNotifPermission(context) }
+    ) {
+        notifGranted = hasNotifPermission(context)
+        AppLog.i("Setup", "notificacoes: ${if (notifGranted) "permitidas" else "negadas"}")
+    }
 
     // re-checa ao voltar de uma tela de sistema (ex.: bateria)
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -193,7 +197,10 @@ fun SetupScreen(onDone: () -> Unit) {
 
         Spacer(Modifier.height(36.dp))
         Button(
-            onClick = onDone,
+            onClick = {
+                AppLog.i("Setup", "concluindo setup (pasta=${downloadDir})")
+                onDone()
+            },
             enabled = fileAccess && downloadDir.isNotBlank(),
             modifier = Modifier.fillMaxWidth().height(52.dp),
             shape = RoundedCornerShape(16.dp)

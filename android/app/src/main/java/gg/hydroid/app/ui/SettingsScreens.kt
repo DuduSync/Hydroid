@@ -1127,6 +1127,7 @@ private fun AppConfigPage(onBack: () -> Unit) {
             Spacer(Modifier.height(12.dp))
             FilledTonalButton(
                 onClick = {
+                    AppLog.i("UI", "ajustes: limpar cache (${cacheBytes ?: 0} bytes antes)")
                     scope.launch {
                         withContext(Dispatchers.IO) { CacheCleaner.clear(context) }
                         cacheBytes = withContext(Dispatchers.IO) { CacheCleaner.sizeBytes(context) }
@@ -1435,6 +1436,7 @@ private fun LogsPage(onBack: () -> Unit) {
                         context.startActivity(
                             android.content.Intent.createChooser(intent, tr("Compartilhar logs"))
                         )
+                        AppLog.i("UI", "ajustes: logs compartilhados (${file.length()} bytes)")
                     }.onFailure { logMsg = "Falha ao compartilhar: ${it.message}" }
                 },
                 modifier = Modifier.fillMaxWidth()
@@ -1448,6 +1450,7 @@ private fun LogsPage(onBack: () -> Unit) {
                     AppLog.clear()
                     logSize = AppLog.sizeBytes()
                     logMsg = tr("Logs apagados")
+                    AppLog.i("UI", "ajustes: logs apagados pelo usuario")
                 },
                 modifier = Modifier.fillMaxWidth()
             ) { Text(tr("Limpar logs")) }

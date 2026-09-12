@@ -21,6 +21,9 @@ class HydroidApp : Application() {
         super.onCreate()
         AppLog.init(this)
         AppStore.init(this)
+        AppLog.i("App", "estado: setup=${AppStore.setupDone.value} tema=${AppStore.theme.value} " +
+            "idioma=${AppStore.language.value.ifBlank { "sistema" }} biblioteca=${AppStore.library.value.size} " +
+            "fontes=${AppStore.sources.value.size} downloads=${AppStore.downloads.value.size}")
         // APK de update ja instalado nao serve mais: apaga pra nao ocupar ~45 MB no cache
         UpdateManager.cleanupOldApks(this)
         // pre-carrega o app: home do catalogo + contagem de downloads (biblioteca e home)

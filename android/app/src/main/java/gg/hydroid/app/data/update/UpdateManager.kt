@@ -137,7 +137,9 @@ object UpdateManager {
     }
 
     fun install(context: Context, apk: File) {
+        AppLog.i("Update", "abrindo instalador: ${apk.name} (${apk.length()} bytes)")
         if (!context.packageManager.canRequestPackageInstalls()) {
+            AppLog.w("Update", "sem permissao de instalar apps: abrindo ajustes")
             val i = Intent(
                 Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
                 Uri.parse("package:${context.packageName}")

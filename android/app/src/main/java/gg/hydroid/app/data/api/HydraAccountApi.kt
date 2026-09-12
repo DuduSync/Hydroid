@@ -86,11 +86,16 @@ object HydraAccountApi {
             profile?.let { put("profileVisibility", it) }
             souvenirs?.let { put("souvenirsVisibility", it) }
         }.toString()
-        return authedPatch("/profile", body)
+        val ok = authedPatch("/profile", body)
+        AppLog.i("Hydra", "visibilidade: perfil=${profile ?: "-"} souvenirs=${souvenirs ?: "-"} ok=$ok")
+        return ok
     }
 
-    suspend fun setAllowCloudGifts(value: Boolean): Boolean =
-        authedPatch("/profile", buildJsonObject { put("allowCloudGifts", value) }.toString())
+    suspend fun setAllowCloudGifts(value: Boolean): Boolean {
+        val ok = authedPatch("/profile", buildJsonObject { put("allowCloudGifts", value) }.toString())
+        AppLog.i("Hydra", "permitir presentes=$value ok=$ok")
+        return ok
+    }
 
     suspend fun blocksCount(): Int {
         val body = authedGet("/profile/blocks") ?: return 0
@@ -103,8 +108,7 @@ object HydraAccountApi {
     suspend fun checkoutUrl(): String? = withContext(Dispatchers.IO) {
         refreshIfNeeded()
         val refresh = AppStore.hydraAuth.value?.refreshToken ?: return@withContext null
-        runCatching {
-            val body = buildJsonObject { put("refreshToken", refresh) }
+        runCatching {            val body = buildJsonObject { put("refreshToken", refresh) }
                 .toString().toRequestBody(JsonCfg.mediaType)
             val req = Request.Builder().url("$API/auth/payment").post(body)
                 .header("User-Agent", UA).build()
@@ -114,7 +118,7 @@ object HydraAccountApi {
                 val token = obj["accessToken"]?.jsonPrimitive?.content ?: return@runCatching null
                 "https://checkout.hydralauncher.gg?token=$token"
             }
-        }.getOrNull()
+        }.getOrNull().also { AppLog.i("Hydra", "checkout: ${if (it != null) "url gerada" else "falhou"}") }
     }
 
     // callback do site de auth: hydralauncher://auth?payload=base64(json)
@@ -188,6 +192,7 @@ object HydraAccountApi {
         val body = authedGet("/profile/me") ?: return null
         val user = runCatching { json.decodeFromString<HydraUser>(body) }.getOrNull() ?: return null
         AppStore.saveHydraUser(user)
+        AppLog.i("Hydra", "perfil carregado: ${user.email ?: user.displayName ?: "?"} (visibilidade=${user.profileVisibility ?: "?"})")
         return user
     }
 

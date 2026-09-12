@@ -279,7 +279,13 @@ fun LibraryScreen(onOpenGame: (LibraryGame) -> Unit = {}) {
         ) {
         OutlinedTextField(
             value = query,
-            onValueChange = { query = it },
+            onValueChange = {
+                val was = query.isBlank()
+                query = it
+                if (was != it.isBlank()) {
+                    AppLog.i("UI", "biblioteca: busca ${if (it.isBlank()) "encerrada" else "iniciada: $it"}")
+                }
+            },
             placeholder = { Text(tr("Buscar na biblioteca...")) },
             leadingIcon = { Icon(Icons.Filled.Search, null) },
             singleLine = true,
@@ -330,15 +336,15 @@ fun LibraryScreen(onOpenGame: (LibraryGame) -> Unit = {}) {
                 DropdownMenu(expanded = sortOpen, onDismissRequest = { sortOpen = false }) {
                     DropdownMenuItem(
                         text = { Text(tr("Adicionados recentemente")) },
-                        onClick = { sort = "recent"; sortOpen = false }
+                        onClick = { AppLog.i("UI", "biblioteca: ordenar por recentes"); sort = "recent"; sortOpen = false }
                     )
                     DropdownMenuItem(
                         text = { Text(tr("Nome (A-Z)")) },
-                        onClick = { sort = "name"; sortOpen = false }
+                        onClick = { AppLog.i("UI", "biblioteca: ordenar por nome"); sort = "name"; sortOpen = false }
                     )
                     DropdownMenuItem(
                         text = { Text(tr("Favoritos primeiro")) },
-                        onClick = { sort = "fav"; sortOpen = false }
+                        onClick = { AppLog.i("UI", "biblioteca: ordenar por favoritos"); sort = "fav"; sortOpen = false }
                     )
                 }
             }
@@ -364,7 +370,7 @@ fun LibraryScreen(onOpenGame: (LibraryGame) -> Unit = {}) {
             onDismiss = { actionsFor = null },
             onOpen = { actionsFor = null; onOpenGame(game) },
             onAddToCollection = { actionsFor = null; collectionsFor = game },
-            onShortcut = { actionsFor = null; pinGameShortcut(context, game) },
+            onShortcut = { AppLog.i("UI", "atalho: fixando ${game.name}"); actionsFor = null; pinGameShortcut(context, game) },
             onRemove = { actionsFor = null; AppStore.removeFromLibrary(game.appId) }
         )
     }
@@ -778,6 +784,7 @@ private fun DownloadCard(dl: ActiveDownload, modifier: Modifier = Modifier) {
             confirmButton = {
                 TextButton(onClick = {
                     confirmDelete = false
+                    AppLog.i("UI", "downloads: apagando ${targets.size} arquivo(s) de ${dl.title}")
                     scope.launch(Dispatchers.IO) {
                         targets.forEach { runCatching { File(it).deleteRecursively() } }
                         withContext(Dispatchers.Main) {
@@ -889,7 +896,10 @@ private fun DownloadCard(dl: ActiveDownload, modifier: Modifier = Modifier) {
                         TextButton(onClick = { DownloadEngine.pause(dl.id) }) { Text(tr("Pausar")) }
                 }
                 if (dl.stage == "concluido" && path != null && File(path).exists()) {
-                    TextButton(onClick = { openFolder(context, path) }) { Text(tr("Abrir pasta")) }
+                    TextButton(onClick = {
+                        AppLog.i("UI", "downloads: abrir pasta $path")
+                        openFolder(context, path)
+                    }) { Text(tr("Abrir pasta")) }
                 }
                 if (dl.stage == "concluido" && isArchive) {
                     TextButton(onClick = { DownloadEngine.extractNow(dl.id) }) { Text(tr("Extrair")) }
