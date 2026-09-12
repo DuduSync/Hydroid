@@ -1,0 +1,287 @@
+package gg.hydroid.app.data.i18n
+
+import android.content.Context
+import android.content.res.Configuration
+import gg.hydroid.app.data.api.JsonCfg
+import gg.hydroid.app.data.store.AppStore
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import java.io.File
+import java.util.Locale
+
+// traducao em tempo de execucao: a chave e o proprio texto em PT.
+// texto sem traducao cai no PT (fallback), nunca quebra.
+fun tr(pt: String): String =
+    if (AppStore.language.value == "en") EN[pt] ?: pt else pt
+
+fun tf(pt: String, vararg args: Any?): String = String.format(tr(pt), *args)
+
+private fun systemDefault() = if (Locale.getDefault().language == "en") "en" else "pt"
+
+// idioma salvo (lido direto do arquivo: usado no attachBaseContext, antes do AppStore.init)
+fun savedLanguage(context: Context): String = runCatching {
+    val f = File(context.filesDir, "hydroid/prefs.json")
+    if (!f.exists()) systemDefault()
+    else JsonCfg.json.parseToJsonElement(f.readText()).jsonObject["language"]
+        ?.jsonPrimitive?.content?.takeIf { it.isNotBlank() } ?: systemDefault()
+}.getOrDefault(systemDefault())
+
+// contexto com o locale do app aplicado (datas e formatos do sistema)
+fun localized(base: Context): Context {
+    val locale = if (savedLanguage(base) == "en") Locale("en", "US") else Locale("pt", "BR")
+    Locale.setDefault(locale)
+    val cfg = Configuration(base.resources.configuration)
+    cfg.setLocale(locale)
+    return base.createConfigurationContext(cfg)
+}
+
+private val EN = mapOf<String, String>(
+    "1 usuário bloqueado" to "1 blocked user",
+    "API do Hydra indisponível — salva localmente" to "Hydra API unavailable — saved locally",
+    "Abrir ajustes" to "Open settings",
+    "Abrir pasta" to "Open folder",
+    "Acesso a arquivos" to "File access",
+    "Adicionado à biblioteca" to "Added to library",
+    "Adicionar fonte" to "Add source",
+    "Adicionar à biblioteca" to "Add to library",
+    "Adicione jogos pela aba Catálogo" to "Add games from the Catalog tab",
+    "Ajustes" to "Settings",
+    "AllDebrid não conseguiu processar o torrent" to "AllDebrid could not process the torrent",
+    "AllDebrid sem id do magnet" to "AllDebrid returned no magnet id",
+    "AllDebrid sem link direto" to "AllDebrid returned no direct link",
+    "Amigos" to "Friends",
+    "Antes de começar, quatro ajustes importantes para os downloads funcionarem bem:" to
+        "Before you start, four important settings so downloads work well:",
+    "Apagar" to "Delete",
+    "Apagar arquivo após extrair" to "Delete file after extracting",
+    "Apoiar com Pix" to "Support with Pix",
+    "Armazenamento" to "Storage",
+    "Arquivo de log" to "Log file",
+    "Arquivos apagados" to "Files deleted",
+    "Assinatura" to "Subscription",
+    "Ative a extração automática para usar" to "Enable auto-extract to use this",
+    "Atualizar email" to "Update email",
+    "Atualizar senha" to "Update password",
+    "Atualização" to "Update",
+    "Atualização pronta" to "Update ready",
+    "Ações automáticas ao terminar" to "Automatic actions when finished",
+    "Baixa a biblioteca e as fontes de download vinculadas a sua conta Hydra." to
+        "Downloads your Hydra account library and linked download sources.",
+    "Baixa direto do swarm no aparelho" to "Downloads straight from the swarm on your device",
+    "Baixando atualização" to "Downloading update",
+    "Baixando o novo APK..." to "Downloading the new APK...",
+    "Baixar" to "Download",
+    "Baixar e instalar" to "Download and install",
+    "Baixe apenas conteúdo que você tem direito." to "Only download content you have the right to.",
+    "Bem-vindo ao Hydroid" to "Welcome to Hydroid",
+    "Biblioteca" to "Library",
+    "Biblioteca e fontes da conta" to "Account library and sources",
+    "Bloqueios da conta" to "Account blocks",
+    "Buscar" to "Search",
+    "Buscar jogos na Steam..." to "Search Steam games...",
+    "Busque qualquer jogo da Steam para ver opções de download" to
+        "Search any Steam game to see download options",
+    "Cache de imagens e arquivos temporários" to "Image and temporary file cache",
+    "Cache do app" to "App cache",
+    "Cache limpo" to "Cache cleared",
+    "Cancelar" to "Cancel",
+    "Carregando..." to "Loading...",
+    "Catálogo" to "Catalog",
+    "Chave %s não configurada (Ajustes, Integrações)" to "%s key not configured (Settings, Integrations)",
+    "Chave da API" to "API key",
+    "Chave removida" to "Key removed",
+    "Cloud downloads com torrent e usenet" to "Cloud downloads with torrent and usenet",
+    "Começar a usar" to "Get started",
+    "Compartilhar logs" to "Share logs",
+    "Conclua o acesso a arquivos primeiro" to "Grant file access first",
+    "Concluído" to "Done",
+    "Conectado" to "Connected",
+    "Configurações do app" to "App settings",
+    "Configure a chave Real-Debrid em Ajustes" to "Set your Real-Debrid key in Settings",
+    "Consultando fontes..." to "Checking sources...",
+    "Conta & Privacidade" to "Account & Privacy",
+    "Conta Hydra" to "Hydra account",
+    "Conta conectada" to "Account connected",
+    "Continuar" to "Resume",
+    "Corpo vazio" to "Empty body",
+    "Créditos" to "Credits",
+    "Depois" to "Later",
+    "Desativar otimização de energia" to "Disable battery optimization",
+    "Descompacta .zip e .rar quando o download terminar" to
+        "Extracts .zip and .rar when the download finishes",
+    "Desenvolvido por" to "Developed by",
+    "Direto" to "Direct",
+    "Doações em breve" to "Donations coming soon",
+    "Download HTTP sem precisar de conta" to "HTTP download without an account",
+    "Download iniciado — acompanhe em Downloads" to "Download started — follow it in Downloads",
+    "Downloads de torrents e hosters" to "Torrent and hoster downloads",
+    "Downloads disponíveis" to "Available downloads",
+    "Downloads ficam aguardando até conectar numa rede Wi-Fi" to
+        "Downloads wait until you connect to Wi-Fi",
+    "Downloads simultâneos" to "Simultaneous downloads",
+    "Email e senha" to "Email and password",
+    "Email ou usuário" to "Email or username",
+    "Entendi" to "Got it",
+    "Entrando..." to "Signing in...",
+    "Entrar" to "Sign in",
+    "Entrar na conta Hydra" to "Sign in to Hydra",
+    "Entre com a conta Hydra para sincronizar a biblioteca e os recursos vinculados a ela." to
+        "Sign in with your Hydra account to sync your library and its linked features.",
+    "Erro desconhecido" to "Unknown error",
+    "Erro no torrent: %s" to "Torrent error: %s",
+    "Escolha onde baixar" to "Choose where to download",
+    "Escolher pasta" to "Choose folder",
+    "Explore o catálogo" to "Browse the catalog",
+    "Exportar histórico técnico" to "Export technical history",
+    "Extrair" to "Extract",
+    "Extrair automaticamente" to "Extract automatically",
+    "Extração falhou: %s" to "Extraction failed: %s",
+    "Falha ao iniciar a engine de torrent" to "Failed to start the torrent engine",
+    "Falha na atualização" to "Update failed",
+    "Fechar" to "Close",
+    "Fila, rede e velocidade" to "Queue, network and speed",
+    "Fonte dos downloads: suas fontes em Ajustes · Hydra Cloud. " to
+        "Download sources: your sources in Settings · Hydra Cloud. ",
+    "Fontes de download" to "Download sources",
+    "Função em beta" to "Beta feature",
+    "Função em beta, toque no ícone para saber mais" to "Beta feature, tap the icon to learn more",
+    "Histórico técnico para reportar problemas" to "Technical history for reporting issues",
+    "Hydroid 0.6 · fork de estudo do Hydra (MIT)" to "Hydroid 0.6 · study fork of Hydra (MIT)",
+    "Idioma" to "Language",
+    "Idioma do aplicativo" to "App language",
+    "Inicie um download pela página de um jogo" to "Start a download from a game page",
+    "Instalar" to "Install",
+    "Integrações" to "Integrations",
+    "Limite de velocidade" to "Speed limit",
+    "Limpar" to "Clear",
+    "Limpar cache" to "Clear cache",
+    "Limpar logs" to "Clear logs",
+    "Link manual" to "Manual link",
+    "Logs apagados" to "Logs cleared",
+    "Logs e diagnóstico" to "Logs & diagnostics",
+    "Magnet inválido: %s" to "Invalid magnet: %s",
+    "Magnet ou URL direta" to "Magnet or direct URL",
+    "Magnet precisa de torrent local ou serviço debrid" to
+        "Magnet needs the local torrent engine or a debrid service",
+    "Mostra o progresso do download e avisa quando terminar" to
+        "Shows download progress and notifies you when it finishes",
+    "Mostrar chave" to "Show key",
+    "Mostrar senha" to "Show password",
+    "Na biblioteca" to "In library",
+    "Nada encontrado" to "Nothing found",
+    "Necessário para salvar, extrair e gerenciar os jogos baixados" to
+        "Required to save, extract and manage downloaded games",
+    "Nenhum app de arquivos encontrado" to "No file manager app found",
+    "Nenhum download" to "No downloads",
+    "Nenhum log ainda" to "No logs yet",
+    "Nenhuma fonte configurada" to "No sources configured",
+    "Nenhuma fonte configurada. Adicione em Ajustes para ver opções." to
+        "No sources configured. Add some in Settings to see options.",
+    "Nova versão disponível" to "New version available",
+    "Não apaga seus downloads nem as configurações." to
+        "It does not delete your downloads or settings.",
+    "Não configurado" to "Not configured",
+    "Não foi possível abrir o checkout" to "Could not open checkout",
+    "Não foi possível abrir o instalador" to "Could not open the installer",
+    "O Hydroid v%s já saiu. Quer baixar e instalar agora?" to
+        "Hydroid v%s is out. Download and install now?",
+    "O link retornou uma página web, não um arquivo. Use Real-Debrid para este provedor." to
+        "The link returned a web page, not a file. Use Real-Debrid for this provider.",
+    "Ocultar chave" to "Hide key",
+    "Onde os jogos serão salvos" to "Where games will be saved",
+    "Os jogos serão salvos na pasta que você escolher" to
+        "Games will be saved to the folder you choose",
+    "Padrão: /storage/emulated/0/Download/HYDROID" to
+        "Default: /storage/emulated/0/Download/HYDROID",
+    "Pasta de downloads" to "Download folder",
+    "Pasta de downloads, extração automática" to "Download folder, auto-extract",
+    "Pasta fora do armazenamento principal" to "Folder outside main storage",
+    "Pasta não suportada — escolha no armazenamento do aparelho" to
+        "Unsupported folder — pick one from device storage",
+    "Pasta padrão restaurada" to "Default folder restored",
+    "Pausar" to "Pause",
+    "Perfil" to "Profile",
+    "Permitir" to "Allow",
+    "Permitir notificações" to "Allow notifications",
+    "Permitir que outros usuários me presenteiem" to "Allow other users to gift me",
+    "Port Android não-oficial. Downloads acontecem via suas fontes configuradas " to
+        "Unofficial Android port. Downloads happen through your configured sources ",
+    "e Real-Debrid. Este app não hospeda nem distribui conteúdo." to
+        "and Real-Debrid. This app does not host or distribute content.",
+    "Presentes Hydra Cloud" to "Hydra Cloud gifts",
+    "Privado" to "Private",
+    "Processa no cloud e baixa em alta velocidade" to
+        "Processes in the cloud and downloads at high speed",
+    "Progresso dos downloads" to "Download progress",
+    "Pós-download" to "After download",
+    "Português e inglês" to "Portuguese and English",
+    "Público" to "Public",
+    "Quantos downloads rodam ao mesmo tempo" to "How many downloads run at the same time",
+    "Quem pode ver seu perfil" to "Who can see your profile",
+    "Real-Debrid conectado" to "Real-Debrid connected",
+    "Real-Debrid não configurado" to "Real-Debrid not configured",
+    "Receber presentes" to "Receive gifts",
+    "Registrada via servidor Hydra Cloud" to "Registered via Hydra Cloud server",
+    "Registrando..." to "Registering...",
+    "Remove o .zip/.rar para liberar o espaço" to "Removes the .zip/.rar to free up space",
+    "Remover" to "Remove",
+    "Remover chave" to "Remove key",
+    "Removido da biblioteca" to "Removed from library",
+    "Renovar Hydra Cloud" to "Renew Hydra Cloud",
+    "Repositório" to "Repository",
+    "Sair da conta" to "Sign out",
+    "Segurança" to "Security",
+    "Sem assinatura" to "No subscription",
+    "Sem isso o Android pode matar o download em segundo plano" to
+        "Otherwise Android may kill the download in the background",
+    "Sem limite" to "Unlimited",
+    "Sem link salvo para retomar, baixe de novo" to "No saved link to resume, download again",
+    "Sem links" to "No links",
+    "Sem links válidos" to "No valid links",
+    "Sem repacks disponíveis nas suas fontes para este jogo." to
+        "No repacks available in your sources for this game.",
+    "Senha" to "Password",
+    "Serviço desconhecido" to "Unknown service",
+    "Serviços Debrid são downloaders premium de internet." to
+        "Debrid services are premium internet downloaders.",
+    "Sincronizando..." to "Syncing...",
+    "Sincronizar agora" to "Sync now",
+    "Sincronização" to "Sync",
+    "Sincronize biblioteca e fontes" to "Sync library and sources",
+    "Sua biblioteca está vazia" to "Your library is empty",
+    "Sua conta Hydra" to "Your Hydra account",
+    "Só baixar no Wi-Fi" to "Only download on Wi-Fi",
+    "Tentar de novo" to "Try again",
+    "Tente outro nome" to "Try another name",
+    "Timeout aguardando o AllDebrid" to "Timed out waiting for AllDebrid",
+    "Timeout aguardando o Premiumize" to "Timed out waiting for Premiumize",
+    "Timeout aguardando o TorBox" to "Timed out waiting for TorBox",
+    "Toque em voltar de novo para sair" to "Tap back again to exit",
+    "TorBox não conseguiu processar o link" to "TorBox could not process the link",
+    "TorBox não conseguiu processar o torrent" to "TorBox could not process the torrent",
+    "TorBox sem link direto" to "TorBox returned no direct link",
+    "TorBox sem torrent_id" to "TorBox returned no torrent_id",
+    "TorBox sem webdownload_id" to "TorBox returned no webdownload_id",
+    "Torrent precisa de um magnet" to "Torrent needs a magnet",
+    "Torrents e hosters processados no cloud" to "Torrents and hosters processed in the cloud",
+    "URL da fonte (.json)" to "Source URL (.json)",
+    "Usar padrão" to "Use default",
+    "Usuários bloqueados" to "Blocked users",
+    "Validar e salvar" to "Validate and save",
+    "Velocidade máxima por download" to "Max speed per download",
+    "Ver mais" to "Show more",
+    "Ver menos" to "Show less",
+    "Verificando..." to "Checking...",
+    "Visibilidade das lembranças" to "Souvenirs visibility",
+    "Visibilidade do perfil" to "Profile visibility",
+    "Você não bloqueou nenhum usuário" to "You haven't blocked any user",
+    "Você pode mudar isso depois nas configurações do Android" to
+        "You can change this later in Android settings",
+    "Voltar" to "Back",
+    "calculando..." to "calculating...",
+    "falha ao baixar a atualização" to "failed to download the update",
+    "fork de estudo do Hydra Launcher (MIT)" to "study fork of Hydra Launcher (MIT)",
+    "Premiumize não conseguiu processar o torrent" to "Premiumize could not process the torrent",
+    "Premiumize não retornou arquivos" to "Premiumize returned no files",
+    "Premiumize sem link direto" to "Premiumize returned no direct link"
+)

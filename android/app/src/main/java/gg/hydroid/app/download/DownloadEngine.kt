@@ -1,5 +1,10 @@
 package gg.hydroid.app.download
 
+import gg.hydroid.app.data.i18n.tr
+
+import gg.hydroid.app.data.i18n.tf
+
+
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -97,7 +102,7 @@ object DownloadEngine {
         if (method == DownloadMethod.TORRENT) {
             if (!uri.startsWith("magnet:")) {
                 post(ActiveDownload(id, title, stage = "erro", method = "torrent",
-                    error = "Torrent precisa de um magnet"))
+                    error = tr("Torrent precisa de um magnet")))
                 return
             }
             synchronized(this) { busyIds.add(id) }
@@ -114,12 +119,12 @@ object DownloadEngine {
         if (debridKey != null && debridKey.isBlank()) {
             AppLog.w("Download", "${method.name} sem chave configurada: $title")
             post(ActiveDownload(id, title, stage = "erro", method = tagOf(method),
-                error = "Chave ${labelOf(method)} não configurada (Ajustes, Integrações)"))
+                error = tf("Chave %s não configurada (Ajustes, Integrações)", labelOf(method))))
             return
         }
         if (method == DownloadMethod.DIRETO && uri.startsWith("magnet:")) {
             post(ActiveDownload(id, title, stage = "erro", method = "direto",
-                error = "Magnet precisa de torrent local ou serviço debrid"))
+                error = tr("Magnet precisa de torrent local ou serviço debrid")))
             return
         }
         val methodTag = tagOf(method)
@@ -181,7 +186,7 @@ object DownloadEngine {
         val dl = AppStore.downloads.value.firstOrNull { it.id == id } ?: return
         val uri = dl.uri
         if (uri.isNullOrBlank()) {
-            post(dl.copy(stage = "erro", error = "Sem link salvo para retomar, baixe de novo"))
+            post(dl.copy(stage = "erro", error = tr("Sem link salvo para retomar, baixe de novo")))
             return
         }
         paused = paused - id
@@ -208,7 +213,7 @@ object DownloadEngine {
             if (result.isFailure) {
                 post(ActiveDownload(id, dl.title, stage = "concluido", method = dl.method,
                     progress = 1f, savePath = path, uri = dl.uri,
-                    error = "Extração falhou: ${result.exceptionOrNull()?.message}"))
+                    error = tf("Extração falhou: %s", result.exceptionOrNull()?.message)))
                 return@launch
             }
             val created = ArchiveExtractor.topLevelEntries(archive)
@@ -250,7 +255,7 @@ object DownloadEngine {
                     if (result.isFailure) {
                         post(ActiveDownload(id, title, stage = "concluido", method = methodTag,
                             progress = 1f, savePath = archive.absolutePath,
-                            error = "Extração falhou: ${result.exceptionOrNull()?.message}"))
+                            error = tf("Extração falhou: %s", result.exceptionOrNull()?.message)))
                         return@launch
                     }
                     // guarda SO o que este download criou (o Apagar nao pode levar a pasta toda)
@@ -414,10 +419,10 @@ object DownloadEngine {
                 if (startAt == 0L) {
                     val contentType = r.header("Content-Type") ?: ""
                     check(!contentType.contains("text/html")) {
-                        "O link retornou uma página web, não um arquivo. Use Real-Debrid para este provedor."
+                        tr("O link retornou uma página web, não um arquivo. Use Real-Debrid para este provedor.")
                     }
                 }
-                val body = r.body ?: error("Corpo vazio")
+                val body = r.body ?: error(tr("Corpo vazio"))
                 val len = body.contentLength()
                 val total = if (len > 0) len + startAt else -1L
                 val input = body.byteStream()

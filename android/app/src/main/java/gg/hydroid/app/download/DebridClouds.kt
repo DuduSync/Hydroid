@@ -1,5 +1,8 @@
 package gg.hydroid.app.download
 
+import gg.hydroid.app.data.i18n.tr
+
+
 import gg.hydroid.app.data.api.HttpClient
 import gg.hydroid.app.data.api.JsonCfg
 import kotlinx.coroutines.delay
@@ -68,11 +71,11 @@ object DebridClouds {
                         ).jsonObject
                         return pickLargest(dl)
                     }
-                    "error" -> error("Premiumize não conseguiu processar o torrent")
+                    "error" -> error(tr("Premiumize não conseguiu processar o torrent"))
                 }
                 delay(5000)
             }
-            error("Timeout aguardando o Premiumize")
+            error(tr("Timeout aguardando o Premiumize"))
         }
         val dl = json.parseToJsonElement(
             http("$api/transfer/directdl", "POST", body = formBody("apikey" to key, "src" to uri))
@@ -87,8 +90,8 @@ object DebridClouds {
         val content = dl["content"]?.jsonArray ?: JsonArray(emptyList())
         val files = content.map { it.jsonObject }
         val best = files.maxByOrNull { it["size"]?.jsonPrimitive?.longOrNull ?: 0L }
-            ?: error("Premiumize não retornou arquivos")
-        return best["link"]?.jsonPrimitive?.content ?: error("Premiumize sem link direto")
+            ?: error(tr("Premiumize não retornou arquivos"))
+        return best["link"]?.jsonPrimitive?.content ?: error(tr("Premiumize sem link direto"))
     }
 
     // ---------- AllDebrid ----------
@@ -102,7 +105,7 @@ object DebridClouds {
                 error(up["error"]?.jsonObject?.get("message")?.jsonPrimitive?.content ?: "AllDebrid recusou o magnet")
             }
             val id = up["data"]?.jsonObject?.get("magnets")?.jsonArray?.firstOrNull()
-                ?.jsonObject?.get("id")?.jsonPrimitive?.content ?: error("AllDebrid sem id do magnet")
+                ?.jsonObject?.get("id")?.jsonPrimitive?.content ?: error(tr("AllDebrid sem id do magnet"))
             repeat(180) {
                 val st = json.parseToJsonElement(
                     http("$api/magnet/status?agent=Hydroid&apikey=$key&id=$id")
@@ -113,16 +116,16 @@ object DebridClouds {
                 val magnet = st["data"]?.jsonObject?.get("magnets")?.jsonObject
                 when (magnet?.get("status")?.jsonPrimitive?.content) {
                     "Ready" -> {
-                        val links = magnet["links"]?.jsonPrimitive?.content ?: error("Sem links")
+                        val links = magnet["links"]?.jsonPrimitive?.content ?: error(tr("Sem links"))
                         val first = links.split("\n").firstOrNull { it.startsWith("http") }
-                            ?: error("Sem links válidos")
+                            ?: error(tr("Sem links válidos"))
                         return unlock(key, first)
                     }
-                    "Error" -> error("AllDebrid não conseguiu processar o torrent")
+                    "Error" -> error(tr("AllDebrid não conseguiu processar o torrent"))
                 }
                 delay(5000)
             }
-            error("Timeout aguardando o AllDebrid")
+            error(tr("Timeout aguardando o AllDebrid"))
         }
         return unlock(key, uri)
     }
@@ -135,7 +138,7 @@ object DebridClouds {
             error(res["error"]?.jsonObject?.get("message")?.jsonPrimitive?.content ?: "AllDebrid não liberou o link")
         }
         return res["data"]?.jsonObject?.get("link")?.jsonPrimitive?.content
-            ?: error("AllDebrid sem link direto")
+            ?: error(tr("AllDebrid sem link direto"))
     }
 
     // ---------- TorBox ----------
@@ -154,7 +157,7 @@ object DebridClouds {
                 error(created["detail"]?.jsonPrimitive?.content ?: "TorBox recusou o magnet")
             }
             val torrentId = created["data"]?.jsonObject?.get("torrent_id")?.jsonPrimitive?.intOrNull
-                ?: error("TorBox sem torrent_id")
+                ?: error(tr("TorBox sem torrent_id"))
             repeat(180) {
                 val list = json.parseToJsonElement(
                     http("$api/torrents/mylist?bypass_cache=true&id=$torrentId", headers = auth)
@@ -165,11 +168,11 @@ object DebridClouds {
                         val fileId = biggestFileId(item)
                         return requestDl("$api/torrents/requestdl?token=$key&torrent_id=$torrentId&file_id=$fileId")
                     }
-                    "paused", "error", "stalled" -> error("TorBox não conseguiu processar o torrent")
+                    "paused", "error", "stalled" -> error(tr("TorBox não conseguiu processar o torrent"))
                 }
                 delay(5000)
             }
-            error("Timeout aguardando o TorBox")
+            error(tr("Timeout aguardando o TorBox"))
         }
         val created = json.parseToJsonElement(
             http(
@@ -182,7 +185,7 @@ object DebridClouds {
             error(created["detail"]?.jsonPrimitive?.content ?: "TorBox recusou o link")
         }
         val webId = created["data"]?.jsonObject?.get("webdownload_id")?.jsonPrimitive?.intOrNull
-            ?: error("TorBox sem webdownload_id")
+            ?: error(tr("TorBox sem webdownload_id"))
         repeat(180) {
             val list = json.parseToJsonElement(
                 http("$api/webdl/mylist?bypass_cache=true&id=$webId", headers = auth)
@@ -193,11 +196,11 @@ object DebridClouds {
                     val fileId = biggestFileId(item)
                     return requestDl("$api/webdl/requestdl?token=$key&web_id=$webId&file_id=$fileId")
                 }
-                "paused", "error", "stalled" -> error("TorBox não conseguiu processar o link")
+                "paused", "error", "stalled" -> error(tr("TorBox não conseguiu processar o link"))
             }
             delay(5000)
         }
-        error("Timeout aguardando o TorBox")
+        error(tr("Timeout aguardando o TorBox"))
     }
 
     private fun biggestFileId(item: JsonObject): Int = item["files"]?.jsonArray
@@ -210,6 +213,6 @@ object DebridClouds {
         if (res["success"]?.jsonPrimitive?.content != "true") {
             error(res["detail"]?.jsonPrimitive?.content ?: "TorBox sem link direto")
         }
-        return res["data"]?.jsonPrimitive?.content ?: error("TorBox sem link direto")
+        return res["data"]?.jsonPrimitive?.content ?: error(tr("TorBox sem link direto"))
     }
 }

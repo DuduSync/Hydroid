@@ -1,5 +1,7 @@
 package gg.hydroid.app.ui
 
+import gg.hydroid.app.data.i18n.tr
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -111,12 +113,12 @@ fun CatalogScreen(vm: CatalogViewModel = viewModel()) {
             value = vm.query,
             onValueChange = { vm.query = it },
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            placeholder = { Text("Buscar jogos na Steam...") },
+            placeholder = { Text(tr("Buscar jogos na Steam...")) },
             leadingIcon = { Icon(Icons.Filled.Search, null) },
             trailingIcon = {
                 if (vm.query.isNotBlank()) {
                     FilledTonalIconButton(onClick = { vm.search() }) {
-                        Icon(Icons.Filled.Search, "Buscar")
+                        Icon(Icons.Filled.Search, tr("Buscar"))
                     }
                 }
             },
@@ -135,13 +137,13 @@ fun CatalogScreen(vm: CatalogViewModel = viewModel()) {
             }
             !vm.searched -> EmptyState(
                 icon = Icons.Filled.Search,
-                title = "Explore o catálogo",
-                subtitle = "Busque qualquer jogo da Steam para ver opções de download"
+                title = tr("Explore o catálogo"),
+                subtitle = tr("Busque qualquer jogo da Steam para ver opções de download")
             )
             vm.results.isEmpty() -> EmptyState(
                 icon = Icons.Filled.Search,
-                title = "Nada encontrado",
-                subtitle = "Tente outro nome"
+                title = tr("Nada encontrado"),
+                subtitle = tr("Tente outro nome")
             )
             else -> LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
@@ -243,12 +245,12 @@ fun GameDetailScreen(vm: CatalogViewModel) {
             uri = uri,
             method = method
         )
-        scope.launch { snackbar.showSnackbar("Download iniciado — acompanhe em Downloads") }
+        scope.launch { snackbar.showSnackbar(tr("Download iniciado — acompanhe em Downloads")) }
     }
 
     fun startChecked(uri: String, method: DownloadMethod, title: String) {
         if (method == DownloadMethod.RD && rdKey.isBlank()) {
-            scope.launch { snackbar.showSnackbar("Configure a chave Real-Debrid em Ajustes") }
+            scope.launch { snackbar.showSnackbar(tr("Configure a chave Real-Debrid em Ajustes")) }
             return
         }
         start(uri, method, title)
@@ -287,7 +289,7 @@ fun GameDetailScreen(vm: CatalogViewModel) {
                     modifier = Modifier.align(Alignment.TopStart).statusBarsPadding().padding(6.dp)
                 ) {
                     Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack, "Voltar",
+                        Icons.AutoMirrored.Filled.ArrowBack, tr("Voltar"),
                         tint = Color.White
                     )
                 }
@@ -331,7 +333,7 @@ fun GameDetailScreen(vm: CatalogViewModel) {
                     if (inLibrary) {
                         AppStore.removeFromLibrary(game.id)
                         inLibrary = false
-                        scope.launch { snackbar.showSnackbar("Removido da biblioteca") }
+                        scope.launch { snackbar.showSnackbar(tr("Removido da biblioteca")) }
                     } else {
                         AppStore.addToLibrary(
                             LibraryGame(
@@ -341,7 +343,7 @@ fun GameDetailScreen(vm: CatalogViewModel) {
                             )
                         )
                         inLibrary = true
-                        scope.launch { snackbar.showSnackbar("Adicionado à biblioteca") }
+                        scope.launch { snackbar.showSnackbar(tr("Adicionado à biblioteca")) }
                     }
                 },
                 modifier = Modifier.padding(horizontal = 20.dp)
@@ -351,7 +353,7 @@ fun GameDetailScreen(vm: CatalogViewModel) {
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(Modifier.width(8.dp))
-                Text(if (inLibrary) "Na biblioteca" else "Adicionar à biblioteca")
+                Text(if (inLibrary) tr("Na biblioteca") else tr("Adicionar à biblioteca"))
             }
 
             // Descrição
@@ -367,14 +369,14 @@ fun GameDetailScreen(vm: CatalogViewModel) {
                     modifier = Modifier.padding(horizontal = 20.dp)
                 )
                 TextButton(onClick = { descExpanded = !descExpanded }) {
-                    Text(if (descExpanded) "Ver menos" else "Ver mais")
+                    Text(if (descExpanded) tr("Ver menos") else tr("Ver mais"))
                 }
             }
 
             // Downloads disponíveis
             Spacer(Modifier.height(8.dp))
             Text(
-                "Downloads disponíveis",
+                tr("Downloads disponíveis"),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
@@ -391,7 +393,7 @@ fun GameDetailScreen(vm: CatalogViewModel) {
             // Download manual
             Spacer(Modifier.height(16.dp))
             Text(
-                "Link manual",
+                tr("Link manual"),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
@@ -402,7 +404,7 @@ fun GameDetailScreen(vm: CatalogViewModel) {
                     optionsFor = DownloadSheet(
                         title = details?.name ?: game.name,
                         fileSize = null,
-                        source = "Link manual",
+                        source = tr("Link manual"),
                         uris = listOf(uri)
                     )
                 }
@@ -410,8 +412,8 @@ fun GameDetailScreen(vm: CatalogViewModel) {
 
             Spacer(Modifier.height(32.dp))
             Text(
-                "Fonte dos downloads: suas fontes em Ajustes · Hydra Cloud. " +
-                    "Baixe apenas conteúdo que você tem direito.",
+                tr("Fonte dos downloads: suas fontes em Ajustes · Hydra Cloud. ") +
+                    tr("Baixe apenas conteúdo que você tem direito."),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 20.dp)
@@ -470,7 +472,7 @@ private fun DownloadOptionsSheet(
             .padding(bottom = 36.dp)
     ) {
         Text(
-            "Baixar",
+            tr("Baixar"),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Bold
@@ -491,31 +493,31 @@ private fun DownloadOptionsSheet(
         if (rdAvailable && debridUri != null) {
             DownloadMethodRow(
                 icon = Icons.Filled.CloudDownload,
-                title = "Real-Debrid",
-                subtitle = "Processa no cloud e baixa em alta velocidade"
+                title = tr("Real-Debrid"),
+                subtitle = tr("Processa no cloud e baixa em alta velocidade")
             ) { onPick(debridUri, DownloadMethod.RD) }
         }
         if (premiumizeAvailable && debridUri != null) {
             DownloadMethodRow(
                 icon = Icons.Filled.CloudDownload,
-                title = "Premiumize",
-                subtitle = "Processa no cloud e baixa em alta velocidade",
+                title = tr("Premiumize"),
+                subtitle = tr("Processa no cloud e baixa em alta velocidade"),
                 beta = true
             ) { onPick(debridUri, DownloadMethod.PREMIUMIZE) }
         }
         if (alldebridAvailable && debridUri != null) {
             DownloadMethodRow(
                 icon = Icons.Filled.CloudDownload,
-                title = "AllDebrid",
-                subtitle = "Processa no cloud e baixa em alta velocidade",
+                title = tr("AllDebrid"),
+                subtitle = tr("Processa no cloud e baixa em alta velocidade"),
                 beta = true
             ) { onPick(debridUri, DownloadMethod.ALLDEBRID) }
         }
         if (torboxAvailable && debridUri != null) {
             DownloadMethodRow(
                 icon = Icons.Filled.CloudDownload,
-                title = "TorBox",
-                subtitle = "Processa no cloud e baixa em alta velocidade",
+                title = tr("TorBox"),
+                subtitle = tr("Processa no cloud e baixa em alta velocidade"),
                 beta = true
             ) { onPick(debridUri, DownloadMethod.TORBOX) }
         }
@@ -523,15 +525,15 @@ private fun DownloadOptionsSheet(
         if (hasMagnet) {
             DownloadMethodRow(
                 icon = Icons.Filled.SportsEsports,
-                title = "Torrent",
-                subtitle = "Baixa direto do swarm no aparelho"
+                title = tr("Torrent"),
+                subtitle = tr("Baixa direto do swarm no aparelho")
             ) { onPick(sheet.uris.first { it.startsWith("magnet:") }, DownloadMethod.TORRENT) }
         }
         if (hasHttp) {
             DownloadMethodRow(
                 icon = Icons.Filled.Download,
-                title = "Direto",
-                subtitle = "Download HTTP sem precisar de conta"
+                title = tr("Direto"),
+                subtitle = tr("Download HTTP sem precisar de conta")
             ) { onPick(sheet.uris.first { it.startsWith("http") }, DownloadMethod.DIRETO) }
         }
     }
@@ -614,7 +616,7 @@ private fun ManualDownloadCard(
             OutlinedTextField(
                 value = uri,
                 onValueChange = { uri = it },
-                label = { Text("Magnet ou URL direta") },
+                label = { Text(tr("Magnet ou URL direta")) },
                 placeholder = { Text("magnet:?xt=... ou https://...") },
                 leadingIcon = { Icon(Icons.Filled.Link, null) },
                 modifier = Modifier.fillMaxWidth(),
@@ -629,7 +631,7 @@ private fun ManualDownloadCard(
             ) {
                 Icon(Icons.Filled.Download, null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Baixar")
+                Text(tr("Baixar"))
             }
         }
     }
@@ -687,7 +689,7 @@ private fun SourceRepackList(
     when {
         sources.isEmpty() -> Box(Modifier.fillMaxWidth().padding(20.dp)) {
             Text(
-                "Nenhuma fonte configurada. Adicione em Ajustes para ver opções.",
+                tr("Nenhuma fonte configurada. Adicione em Ajustes para ver opções."),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -697,7 +699,7 @@ private fun SourceRepackList(
                 CircularProgressIndicator(Modifier.size(28.dp))
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    "Consultando fontes...",
+                    tr("Consultando fontes..."),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -705,7 +707,7 @@ private fun SourceRepackList(
         }
         repacks.isEmpty() -> Box(Modifier.fillMaxWidth().padding(20.dp)) {
             Text(
-                "Sem repacks disponíveis nas suas fontes para este jogo.",
+                tr("Sem repacks disponíveis nas suas fontes para este jogo."),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -764,7 +766,7 @@ private fun RepackCard(
             ) {
                 Icon(Icons.Filled.Download, null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Baixar")
+                Text(tr("Baixar"))
             }
         }
     }

@@ -1,5 +1,8 @@
 package gg.hydroid.app
 
+import gg.hydroid.app.data.i18n.tr
+
+import android.content.Context
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -56,6 +59,10 @@ import gg.hydroid.app.ui.theme.HydroidTheme
 
 @ExperimentalMaterial3Api
 class MainActivity : ComponentActivity() {
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(gg.hydroid.app.data.i18n.localized(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -73,12 +80,14 @@ class MainActivity : ComponentActivity() {
 
 private data class Tab(val label: String, val icon: ImageVector)
 
-private val tabs = listOf(
-    Tab("Biblioteca", Icons.Filled.SportsEsports),
-    Tab("Catálogo", Icons.Filled.Search),
-    Tab("Downloads", Icons.Filled.Download),
-    Tab("Ajustes", Icons.Filled.Settings),
-)
+// getter (nao val fixo): reavalia o idioma a cada uso
+private val tabs: List<Tab>
+    get() = listOf(
+        Tab(tr("Biblioteca"), Icons.Filled.SportsEsports),
+        Tab(tr("Catálogo"), Icons.Filled.Search),
+        Tab(tr("Downloads"), Icons.Filled.Download),
+        Tab(tr("Ajustes"), Icons.Filled.Settings),
+    )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -105,7 +114,7 @@ private fun HydroidRoot() {
             (context as? android.app.Activity)?.finish()
         } else {
             lastBackMs = now
-            Toast.makeText(context, "Toque em voltar de novo para sair", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, tr("Toque em voltar de novo para sair"), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -115,7 +124,7 @@ private fun HydroidRoot() {
         topBar = {
             if (!detailOpen) {
                 Text(
-                    "Hydroid",
+                    tr("Hydroid"),
                     fontWeight = FontWeight.ExtraBold,
                     color = MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.titleLarge,

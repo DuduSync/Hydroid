@@ -1,5 +1,8 @@
 package gg.hydroid.app.download
 
+import gg.hydroid.app.data.i18n.tr
+
+
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -27,7 +30,7 @@ class DownloadService : Service() {
                         "Downloads",
                         NotificationManager.IMPORTANCE_LOW
                     ).apply {
-                        description = "Progresso dos downloads"
+                        description = tr("Progresso dos downloads")
                         setShowBadge(false)
                     }
                 )

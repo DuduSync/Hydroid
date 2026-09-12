@@ -24,11 +24,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import gg.hydroid.app.data.i18n.tf
+import gg.hydroid.app.data.i18n.tr
 import gg.hydroid.app.data.update.UpdateManager
 
-const val BETA_MESSAGE =
-    "Essa função está em beta. Se você realmente for utilizar, entre em contato com o " +
-        "desenvolvedor para ter um suporte melhor e ajudar o projeto a crescer."
+// getter (nao const): reavalia o idioma a cada uso
+val BETA_MESSAGE: String
+    get() = tr(
+        "Essa função está em beta. Se você realmente for utilizar, entre em contato com o " +
+            "desenvolvedor para ter um suporte melhor e ajudar o projeto a crescer."
+    )
 
 // botao universal de aviso: mostra o popup de funcao em beta
 @Composable
@@ -37,7 +42,7 @@ fun BetaInfoButton(modifier: Modifier = Modifier) {
     IconButton(onClick = { show = true }, modifier = modifier.size(28.dp)) {
         Icon(
             Icons.Filled.Info,
-            "Função em beta",
+            tr("Função em beta"),
             tint = MaterialTheme.colorScheme.tertiary,
             modifier = Modifier.size(18.dp)
         )
@@ -46,7 +51,7 @@ fun BetaInfoButton(modifier: Modifier = Modifier) {
         AlertDialog(
             onDismissRequest = { show = false },
             confirmButton = {
-                TextButton(onClick = { show = false }) { Text("Entendi") }
+                TextButton(onClick = { show = false }) { Text(tr("Entendi")) }
             },
             icon = {
                 Icon(
@@ -54,7 +59,7 @@ fun BetaInfoButton(modifier: Modifier = Modifier) {
                     tint = MaterialTheme.colorScheme.tertiary
                 )
             },
-            title = { Text("Função em beta") },
+            title = { Text(tr("Função em beta")) },
             text = { Text(BETA_MESSAGE) }
         )
     }
@@ -74,20 +79,20 @@ fun UpdateDialog() {
         },
         title = {
             when (s) {
-                is UpdateManager.State.Available -> Text("Nova versão disponível")
-                is UpdateManager.State.Downloading -> Text("Baixando atualização")
-                is UpdateManager.State.Ready -> Text("Atualização pronta")
-                is UpdateManager.State.Failed -> Text("Falha na atualização")
-                else -> Text("Atualização")
+                is UpdateManager.State.Available -> Text(tr("Nova versão disponível"))
+                is UpdateManager.State.Downloading -> Text(tr("Baixando atualização"))
+                is UpdateManager.State.Ready -> Text(tr("Atualização pronta"))
+                is UpdateManager.State.Failed -> Text(tr("Falha na atualização"))
+                else -> Text(tr("Atualização"))
             }
         },
         text = {
             when (s) {
                 is UpdateManager.State.Available -> Text(
-                    "O Hydroid v${s.version} já saiu. Quer baixar e instalar agora?"
+                    tf("O Hydroid v%s já saiu. Quer baixar e instalar agora?", s.version)
                 )
                 is UpdateManager.State.Downloading -> Column {
-                    Text("Baixando o novo APK...")
+                    Text(tr("Baixando o novo APK..."))
                     Spacer(Modifier.height(10.dp))
                     LinearProgressIndicator(
                         progress = { s.progress.coerceIn(0f, 1f) },
@@ -95,8 +100,10 @@ fun UpdateDialog() {
                     )
                 }
                 is UpdateManager.State.Ready -> Text(
-                    "O APK foi baixado. Se o instalador não abriu, toque em \"Instalar\" " +
-                        "e permita instalar apps desconhecidos quando o Android pedir."
+                    tr(
+                        "O APK foi baixado. Se o instalador não abriu, toque em \"Instalar\" " +
+                            "e permita instalar apps desconhecidos quando o Android pedir."
+                    )
                 )
                 is UpdateManager.State.Failed -> Text(s.message)
                 else -> {}
@@ -106,19 +113,19 @@ fun UpdateDialog() {
             when (s) {
                 is UpdateManager.State.Available -> TextButton(
                     onClick = { UpdateManager.downloadAndInstall(context) }
-                ) { Text("Baixar e instalar") }
+                ) { Text(tr("Baixar e instalar")) }
                 is UpdateManager.State.Ready -> TextButton(
                     onClick = { UpdateManager.install(context, s.file) }
-                ) { Text("Instalar") }
+                ) { Text(tr("Instalar")) }
                 is UpdateManager.State.Failed -> TextButton(
                     onClick = { UpdateManager.downloadAndInstall(context) }
-                ) { Text("Tentar de novo") }
+                ) { Text(tr("Tentar de novo")) }
                 else -> {}
             }
         },
         dismissButton = {
             if (s !is UpdateManager.State.Downloading) {
-                TextButton(onClick = { UpdateManager.dismiss() }) { Text("Depois") }
+                TextButton(onClick = { UpdateManager.dismiss() }) { Text(tr("Depois")) }
             }
         }
     )

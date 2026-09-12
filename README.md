@@ -46,8 +46,9 @@ APK universal assinado (arm64 + x86_64):
 - **Atualização automática**: confere o release mais recente e instala o APK com um toque
 - Ajustes organizados em submenus (Integrações, Fontes, Configurações, Logs e Créditos), com validação das chaves dos serviços debrid
 - Logs internos com exportação para diagnóstico
+- **Limpar cache** com um toque (imagens e temporários, sem tocar nos downloads)
 - Biblioteca local com capas
-- Interface em português (PT-BR)
+- **Interface em português e inglês** (seletor de idioma nas configurações)
 - Sair com dois toques no voltar (com aviso na tela)
 - Temas claro e escuro (Material 3)
 

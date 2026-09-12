@@ -1,5 +1,8 @@
 package gg.hydroid.app.data.api
 
+import gg.hydroid.app.data.i18n.tr
+
+
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.intOrNull
@@ -20,7 +23,7 @@ object DebridApis {
             "premiumize" -> premiumize(key)
             "alldebrid" -> alldebrid(key)
             "torbox" -> torbox(key)
-            else -> error("Serviço desconhecido")
+            else -> error(tr("Serviço desconhecido"))
         }
     }
 

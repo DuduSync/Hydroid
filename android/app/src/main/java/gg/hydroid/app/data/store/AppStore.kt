@@ -55,6 +55,9 @@ object AppStore {
     private val _speedLimitKbps = MutableStateFlow(0)
     val speedLimitKbps: StateFlow<Int> = _speedLimitKbps
 
+    private val _language = MutableStateFlow("")
+    val language: StateFlow<String> = _language
+
     private val _hydraAuth = MutableStateFlow<HydraAuth?>(null)
     val hydraAuth: StateFlow<HydraAuth?> = _hydraAuth
 
@@ -85,6 +88,9 @@ object AppStore {
         _maxConcurrent.value = prefs.maxConcurrent
         _wifiOnly.value = prefs.wifiOnly
         _speedLimitKbps.value = prefs.speedLimitKbps
+        _language.value = prefs.language.ifBlank {
+            if (java.util.Locale.getDefault().language == "en") "en" else "pt"
+        }
     }
 
     @kotlinx.serialization.Serializable
@@ -95,14 +101,15 @@ object AppStore {
         val downloadDir: String = "",
         val maxConcurrent: Int = 2,
         val wifiOnly: Boolean = false,
-        val speedLimitKbps: Int = 0
+        val speedLimitKbps: Int = 0,
+        val language: String = ""
     )
 
     private fun savePrefs() = save(
         "prefs.json",
         Prefs(
             _setupDone.value, _autoExtract.value, _deleteArchive.value, _downloadDir.value,
-            _maxConcurrent.value, _wifiOnly.value, _speedLimitKbps.value
+            _maxConcurrent.value, _wifiOnly.value, _speedLimitKbps.value, _language.value
         )
     )
 
@@ -128,6 +135,8 @@ object AppStore {
 
     // 0 = sem limite de velocidade
     fun setSpeedLimitKbps(v: Int) { _speedLimitKbps.value = v.coerceAtLeast(0); savePrefs() }
+
+    fun setLanguage(code: String) { _language.value = code; savePrefs() }
 
     // destino dos downloads: pasta escolhida pelo usuario ou padrao do app
     fun targetDir(context: Context): File {

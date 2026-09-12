@@ -1,5 +1,7 @@
 package gg.hydroid.app.ui
 
+import gg.hydroid.app.data.i18n.tr
+
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -95,14 +97,14 @@ fun SetupScreen(onDone: () -> Unit) {
         )
         Spacer(Modifier.height(16.dp))
         Text(
-            "Bem-vindo ao Hydroid",
+            tr("Bem-vindo ao Hydroid"),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.ExtraBold,
             color = MaterialTheme.colorScheme.primary
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            "Antes de começar, quatro ajustes importantes para os downloads funcionarem bem:",
+            tr("Antes de começar, quatro ajustes importantes para os downloads funcionarem bem:"),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 8.dp)
@@ -111,10 +113,10 @@ fun SetupScreen(onDone: () -> Unit) {
 
         SetupStep(
             icon = Icons.Filled.Notifications,
-            title = "Permitir notificações",
-            subtitle = "Mostra o progresso do download e avisa quando terminar",
+            title = tr("Permitir notificações"),
+            subtitle = tr("Mostra o progresso do download e avisa quando terminar"),
             done = notifGranted,
-            actionLabel = "Permitir",
+            actionLabel = tr("Permitir"),
             onAction = {
                 if (Build.VERSION.SDK_INT >= 33) {
                     notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -124,10 +126,10 @@ fun SetupScreen(onDone: () -> Unit) {
         Spacer(Modifier.height(14.dp))
         SetupStep(
             icon = Icons.Filled.BatteryAlert,
-            title = "Desativar otimização de energia",
-            subtitle = "Sem isso o Android pode matar o download em segundo plano",
+            title = tr("Desativar otimização de energia"),
+            subtitle = tr("Sem isso o Android pode matar o download em segundo plano"),
             done = batteryOk,
-            actionLabel = "Abrir ajustes",
+            actionLabel = tr("Abrir ajustes"),
             onAction = {
                 runCatching {
                     context.startActivity(
@@ -142,10 +144,10 @@ fun SetupScreen(onDone: () -> Unit) {
         Spacer(Modifier.height(14.dp))
         SetupStep(
             icon = Icons.Filled.Folder,
-            title = "Acesso a arquivos",
-            subtitle = "Necessário para salvar, extrair e gerenciar os jogos baixados",
+            title = tr("Acesso a arquivos"),
+            subtitle = tr("Necessário para salvar, extrair e gerenciar os jogos baixados"),
             done = fileAccess,
-            actionLabel = "Permitir",
+            actionLabel = tr("Permitir"),
             onAction = {
                 if (Build.VERSION.SDK_INT >= 30) {
                     val intent = Intent(
@@ -177,11 +179,11 @@ fun SetupScreen(onDone: () -> Unit) {
         Spacer(Modifier.height(14.dp))
         SetupStep(
             icon = Icons.Filled.Download,
-            title = "Escolha onde baixar",
-            subtitle = if (fileAccess) "Os jogos serão salvos na pasta que você escolher"
-            else "Conclua o acesso a arquivos primeiro",
+            title = tr("Escolha onde baixar"),
+            subtitle = if (fileAccess) tr("Os jogos serão salvos na pasta que você escolher")
+            else tr("Conclua o acesso a arquivos primeiro"),
             done = downloadDir.isNotBlank(),
-            actionLabel = "Escolher pasta",
+            actionLabel = tr("Escolher pasta"),
             onAction = {
                 if (fileAccess) folderPicker.launch(null)
             }
@@ -196,11 +198,11 @@ fun SetupScreen(onDone: () -> Unit) {
         ) {
             Icon(Icons.Filled.SportsEsports, null, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(10.dp))
-            Text("Começar a usar", fontWeight = FontWeight.Bold)
+            Text(tr("Começar a usar"), fontWeight = FontWeight.Bold)
         }
         Spacer(Modifier.height(12.dp))
         Text(
-            "Você pode mudar isso depois nas configurações do Android",
+            tr("Você pode mudar isso depois nas configurações do Android"),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

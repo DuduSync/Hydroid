@@ -1,5 +1,8 @@
 package gg.hydroid.app.data.update
 
+import gg.hydroid.app.data.i18n.tr
+
+
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -108,7 +111,7 @@ object UpdateManager {
                 install(context, out)
             }.onFailure {
                 AppLog.e("Update", "download falhou", it)
-                _state.value = State.Failed(it.message ?: "falha ao baixar a atualização")
+                _state.value = State.Failed(it.message ?: tr("falha ao baixar a atualização"))
             }
         }
     }
@@ -129,7 +132,7 @@ object UpdateManager {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         runCatching { context.startActivity(i) }
-            .onFailure { _state.value = State.Failed("Não foi possível abrir o instalador") }
+            .onFailure { _state.value = State.Failed(tr("Não foi possível abrir o instalador")) }
     }
 
     private fun currentVersion(): String = runCatching {

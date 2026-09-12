@@ -1,5 +1,8 @@
 package gg.hydroid.app.ui
 
+import gg.hydroid.app.data.i18n.tr
+import gg.hydroid.app.data.i18n.tf
+
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -86,10 +89,10 @@ fun LibraryScreen(onOpenGame: (LibraryGame) -> Unit = {}) {
                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
             )
             Spacer(Modifier.height(16.dp))
-            Text("Sua biblioteca está vazia", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(tr("Sua biblioteca está vazia"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(6.dp))
             Text(
-                "Adicione jogos pela aba Catálogo",
+                tr("Adicione jogos pela aba Catálogo"),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -146,12 +149,12 @@ private data class MethodBadge(val label: String, val color: Color)
 
 @Composable
 private fun downloadMethodBadge(method: String): MethodBadge = when (method) {
-    "direto" -> MethodBadge("Direto", MaterialTheme.colorScheme.secondary)
-    "torrent" -> MethodBadge("Torrent", MaterialTheme.colorScheme.tertiary)
-    "premiumize" -> MethodBadge("Premiumize", MaterialTheme.colorScheme.tertiary)
-    "alldebrid" -> MethodBadge("AllDebrid", MaterialTheme.colorScheme.tertiary)
-    "torbox" -> MethodBadge("TorBox", MaterialTheme.colorScheme.tertiary)
-    else -> MethodBadge("Real-Debrid", MaterialTheme.colorScheme.primary)
+    "direto" -> MethodBadge(tr("Direto"), MaterialTheme.colorScheme.secondary)
+    "torrent" -> MethodBadge(tr("Torrent"), MaterialTheme.colorScheme.tertiary)
+    "premiumize" -> MethodBadge(tr("Premiumize"), MaterialTheme.colorScheme.tertiary)
+    "alldebrid" -> MethodBadge(tr("AllDebrid"), MaterialTheme.colorScheme.tertiary)
+    "torbox" -> MethodBadge(tr("TorBox"), MaterialTheme.colorScheme.tertiary)
+    else -> MethodBadge(tr("Real-Debrid"), MaterialTheme.colorScheme.primary)
 }
 
 @Composable
@@ -169,10 +172,10 @@ fun DownloadsScreen() {
                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
             )
             Spacer(Modifier.height(16.dp))
-            Text("Nenhum download", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(tr("Nenhum download"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(6.dp))
             Text(
-                "Inicie um download pela página de um jogo",
+                tr("Inicie um download pela página de um jogo"),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -211,8 +214,10 @@ private fun DownloadCard(dl: ActiveDownload) {
             title = { Text("Apagar ${dl.title}?") },
             text = {
                 Text(
-                    "Os arquivos baixados${deleteSize?.let { " ($it)" } ?: ""} serão removidos " +
-                        "do aparelho. Não dá para desfazer."
+                    tf(
+                        "Os arquivos baixados%s serão removidos do aparelho. Não dá para desfazer.",
+                        deleteSize?.let { " ($it)" } ?: ""
+                    )
                 )
             },
             confirmButton = {
@@ -222,13 +227,13 @@ private fun DownloadCard(dl: ActiveDownload) {
                         targets.forEach { runCatching { File(it).deleteRecursively() } }
                         withContext(Dispatchers.Main) {
                             DownloadEngine.cancel(dl.id)
-                            Toast.makeText(context, "Arquivos apagados", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, tr("Arquivos apagados"), Toast.LENGTH_SHORT).show()
                         }
                     }
-                }) { Text("Apagar") }
+                }) { Text(tr("Apagar")) }
             },
             dismissButton = {
-                TextButton(onClick = { confirmDelete = false }) { Text("Cancelar") }
+                TextButton(onClick = { confirmDelete = false }) { Text(tr("Cancelar")) }
             }
         )
     }
@@ -266,8 +271,8 @@ private fun DownloadCard(dl: ActiveDownload) {
             Spacer(Modifier.height(8.dp))
             Text(
                 when (dl.stage) {
-                    "concluido" -> dl.error ?: "Concluído"
-                    "erro" -> dl.error ?: "Erro desconhecido"
+                    "concluido" -> dl.error ?: tr("Concluído")
+                    "erro" -> dl.error ?: tr("Erro desconhecido")
                     "baixando" -> buildString {
                         append("${formatBytes(dl.speedBps)}/s  ·  ")
                         append("${formatBytes(dl.bytesDownloaded)} de ${formatBytes(dl.totalBytes)}")
@@ -317,26 +322,26 @@ private fun DownloadCard(dl: ActiveDownload) {
             ) {
                 when {
                     dl.stage == "pausado" -> TextButton(onClick = { DownloadEngine.resume(dl.id) }) {
-                        Text("Continuar")
+                        Text(tr("Continuar"))
                     }
                     dl.stage == "erro" && dl.uri != null -> TextButton(onClick = { DownloadEngine.resume(dl.id) }) {
-                        Text("Tentar de novo")
+                        Text(tr("Tentar de novo"))
                     }
                     dl.stage == "baixando" || dl.stage == "resolvendo" ||
                         dl.stage == "conectando ao swarm" || dl.stage.startsWith("cloud") ->
-                        TextButton(onClick = { DownloadEngine.pause(dl.id) }) { Text("Pausar") }
+                        TextButton(onClick = { DownloadEngine.pause(dl.id) }) { Text(tr("Pausar")) }
                 }
                 if (dl.stage == "concluido" && path != null && File(path).exists()) {
-                    TextButton(onClick = { openFolder(context, path) }) { Text("Abrir pasta") }
+                    TextButton(onClick = { openFolder(context, path) }) { Text(tr("Abrir pasta")) }
                 }
                 if (dl.stage == "concluido" && isArchive) {
-                    TextButton(onClick = { DownloadEngine.extractNow(dl.id) }) { Text("Extrair") }
+                    TextButton(onClick = { DownloadEngine.extractNow(dl.id) }) { Text(tr("Extrair")) }
                 }
                 if (dl.stage == "concluido" && path != null) {
-                    TextButton(onClick = { confirmDelete = true }) { Text("Apagar") }
+                    TextButton(onClick = { confirmDelete = true }) { Text(tr("Apagar")) }
                 }
                 TextButton(onClick = { DownloadEngine.cancel(dl.id) }) {
-                    Text(if (dl.stage == "concluido") "Limpar" else "Cancelar")
+                    Text(if (dl.stage == "concluido") tr("Limpar") else tr("Cancelar"))
                 }
             }
         }
@@ -364,9 +369,9 @@ private fun folderSize(f: File): Long =
 private fun openFolder(context: Context, savePath: String) {
     val f = File(savePath)
     val target = if (f.isFile) f.parentFile ?: f else f
-    val base = "/storage/emulated/0/"
+    val base = tr("/storage/emulated/0/")
     if (!target.absolutePath.startsWith(base)) {
-        Toast.makeText(context, "Pasta fora do armazenamento principal", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, tr("Pasta fora do armazenamento principal"), Toast.LENGTH_SHORT).show()
         return
     }
     val rel = "primary:" + target.absolutePath.removePrefix(base)
@@ -379,7 +384,7 @@ private fun openFolder(context: Context, savePath: String) {
     runCatching { context.startActivity(intent) }
         .onFailure {
             android.util.Log.e("HydroidFolder", "abrir pasta falhou: ${uri}", it)
-            Toast.makeText(context, "Nenhum app de arquivos encontrado", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, tr("Nenhum app de arquivos encontrado"), Toast.LENGTH_SHORT).show()
         }
 }
 

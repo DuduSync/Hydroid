@@ -1,5 +1,10 @@
 package gg.hydroid.app.download
 
+import gg.hydroid.app.data.i18n.tr
+
+import gg.hydroid.app.data.i18n.tf
+
+
 import android.content.Context
 import gg.hydroid.app.data.log.AppLog
 import gg.hydroid.app.data.model.ActiveDownload
@@ -75,7 +80,7 @@ object TorrentEngine {
         appContext = context.applicationContext
         val mgr = ensureSession() ?: run {
             post(ActiveDownload(id, title, stage = "erro", method = "torrent",
-                error = "Falha ao iniciar a engine de torrent"))
+                error = tr("Falha ao iniciar a engine de torrent")))
             return
         }
         // evita cards duplicados do mesmo titulo
@@ -90,7 +95,7 @@ object TorrentEngine {
             mgr.download(withTrackers(magnet), AppStore.torrentsDir(context), torrent_flags_t())
         } catch (e: Exception) {
             post(ActiveDownload(id, title, stage = "erro", method = "torrent",
-                error = "Magnet inválido: ${e.message}"))
+                error = tf("Magnet inválido: %s", e.message)))
         }
     }
 
@@ -157,7 +162,7 @@ object TorrentEngine {
                             val id = pendingId ?: return
                             pendingId = null
                             post(ActiveDownload(id, pendingTitle ?: "Torrent", stage = "erro",
-                                method = "torrent", error = "Erro no torrent: ${alert.message()}"))
+                                method = "torrent", error = tf("Erro no torrent: %s", alert.message())))
                             DownloadEngine.onEngineDone(id)
                         }
                     }

@@ -1,5 +1,6 @@
 package gg.hydroid.app.ui
 
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -19,6 +20,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CardGiftcard
+import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Delete
@@ -28,6 +30,7 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Login
@@ -60,11 +63,15 @@ import gg.hydroid.app.data.api.RealDebridApi
 import gg.hydroid.app.data.log.AppLog
 import gg.hydroid.app.data.model.DownloadSource
 import gg.hydroid.app.data.model.HydraUser
+import gg.hydroid.app.data.i18n.tr
 import gg.hydroid.app.data.store.AppStore
+import gg.hydroid.app.data.store.CacheCleaner
 import gg.hydroid.app.data.store.StorageUtil
 import gg.hydroid.app.download.DownloadEngine
 import gg.hydroid.app.download.TorrentEngine
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 // ===== DOACOES: link usado no botao "Apoiar com Pix" dos creditos =====
 private const val DONATION_URL = "https://nubank.com.br/cobrar/7rfap/6aa35e97-c27c-479b-b74b-dbd122db9877"
@@ -105,32 +112,32 @@ private fun SettingsHome(onOpen: (SettingsPage) -> Unit) {
         }
         item {
             NavRow(
-                Icons.Filled.Key, "Integrações",
-                if (rdKey.isBlank()) "Real-Debrid não configurado" else "Real-Debrid conectado"
+                Icons.Filled.Key, tr("Integrações"),
+                if (rdKey.isBlank()) tr("Real-Debrid não configurado") else tr("Real-Debrid conectado")
             ) { onOpen(SettingsPage.INTEGRACOES) }
         }
         item {
             NavRow(
-                Icons.Filled.Link, "Fontes de download",
+                Icons.Filled.Link, tr("Fontes de download"),
                 "${sources.size} fonte(s) configurada(s)"
             ) { onOpen(SettingsPage.FONTES) }
         }
         item {
             NavRow(
-                Icons.Filled.Settings, "Configurações do app",
-                "Pasta de downloads, extração automática"
+                Icons.Filled.Settings, tr("Configurações do app"),
+                tr("Pasta de downloads, extração automática")
             ) { onOpen(SettingsPage.CONFIG) }
         }
         item {
             NavRow(
-                Icons.Filled.Description, "Logs e diagnóstico",
-                "Exportar histórico técnico"
+                Icons.Filled.Description, tr("Logs e diagnóstico"),
+                tr("Exportar histórico técnico")
             ) { onOpen(SettingsPage.LOGS) }
         }
         item {
             NavRow(
-                Icons.Filled.Favorite, "Créditos",
-                "Hydroid 0.6 · fork de estudo do Hydra (MIT)"
+                Icons.Filled.Favorite, tr("Créditos"),
+                tr("Hydroid 0.6 · fork de estudo do Hydra (MIT)")
             ) { onOpen(SettingsPage.CREDITOS) }
         }
     }
@@ -173,13 +180,13 @@ private fun AccountNavRow(
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    if (loggedIn) (user?.displayName?.ifBlank { "Conta Hydra" } ?: "Conta Hydra")
-                    else "Entrar na conta Hydra",
+                    if (loggedIn) (user?.displayName?.ifBlank { tr("Conta Hydra") } ?: tr("Conta Hydra"))
+                    else tr("Entrar na conta Hydra"),
                     style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold
                 )
                 Text(
-                    if (loggedIn) (user?.email ?: "Conta conectada")
-                    else "Sincronize biblioteca e fontes",
+                    if (loggedIn) (user?.email ?: tr("Conta conectada"))
+                    else tr("Sincronize biblioteca e fontes"),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -204,9 +211,9 @@ private suspend fun syncAccount(): String {
 }
 
 private fun visibilityLabel(value: String) = when (value) {
-    "PRIVATE" -> "Privado"
-    "FRIENDS" -> "Amigos"
-    else -> "Público"
+    "PRIVATE" -> tr("Privado")
+    "FRIENDS" -> tr("Amigos")
+    else -> tr("Público")
 }
 
 @Composable
@@ -226,7 +233,7 @@ private fun VisibilityRow(
                 Icon(Icons.Filled.ArrowDropDown, null, modifier = Modifier.size(18.dp))
             }
             DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                listOf("PUBLIC" to "Público", "FRIENDS" to "Amigos", "PRIVATE" to "Privado")
+                listOf("PUBLIC" to tr("Público"), "FRIENDS" to tr("Amigos"), "PRIVATE" to tr("Privado"))
                     .forEach { (v, l) ->
                         DropdownMenuItem(
                             text = { Text(l) },
@@ -275,8 +282,8 @@ private fun AccountPage(onBack: () -> Unit) {
 
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar") }
-            Text("Conta Hydra", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            IconButton(onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, tr("Voltar")) }
+            Text(tr("Conta Hydra"), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         }
         if (!loggedIn) {
             Column(
@@ -284,21 +291,21 @@ private fun AccountPage(onBack: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    "Entre com a conta Hydra para sincronizar a biblioteca e os recursos vinculados a ela.",
+                    tr("Entre com a conta Hydra para sincronizar a biblioteca e os recursos vinculados a ela."),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 OutlinedTextField(
                     value = login,
                     onValueChange = { login = it },
-                    label = { Text("Email ou usuário") },
+                    label = { Text(tr("Email ou usuário")) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
-                    label = { Text("Senha") },
+                    label = { Text(tr("Senha")) },
                     singleLine = true,
                     visualTransformation = if (passVisible) VisualTransformation.None
                     else PasswordVisualTransformation(),
@@ -306,7 +313,7 @@ private fun AccountPage(onBack: () -> Unit) {
                         IconButton(onClick = { passVisible = !passVisible }) {
                             Icon(
                                 if (passVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                                "Mostrar senha"
+                                tr("Mostrar senha")
                             )
                         }
                     },
@@ -338,7 +345,7 @@ private fun AccountPage(onBack: () -> Unit) {
                         Icon(Icons.Filled.Login, null, modifier = Modifier.size(18.dp))
                     }
                     Spacer(Modifier.width(8.dp))
-                    Text(if (loading) "Entrando..." else "Entrar")
+                    Text(if (loading) tr("Entrando...") else tr("Entrar"))
                 }
             }
         } else {
@@ -346,7 +353,7 @@ private fun AccountPage(onBack: () -> Unit) {
                 Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                SettingsSection(Icons.Filled.Person, "Perfil", "Sua conta Hydra") {
+                SettingsSection(Icons.Filled.Person, tr("Perfil"), tr("Sua conta Hydra")) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (!user?.profileImageUrl.isNullOrBlank()) {
                             AsyncImage(
@@ -371,7 +378,7 @@ private fun AccountPage(onBack: () -> Unit) {
                         Spacer(Modifier.width(14.dp))
                         Column {
                             Text(
-                                user?.displayName?.ifBlank { "Conta Hydra" } ?: "Conta Hydra",
+                                user?.displayName?.ifBlank { tr("Conta Hydra") } ?: tr("Conta Hydra"),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
@@ -389,21 +396,21 @@ private fun AccountPage(onBack: () -> Unit) {
                     }
                 }
 
-                SettingsSection(Icons.Filled.Visibility, "Conta & Privacidade", "Quem pode ver seu perfil") {
-                    VisibilityRow("Visibilidade do perfil", user?.profileVisibility ?: "PUBLIC") { v ->
+                SettingsSection(Icons.Filled.Visibility, tr("Conta & Privacidade"), tr("Quem pode ver seu perfil")) {
+                    VisibilityRow(tr("Visibilidade do perfil"), user?.profileVisibility ?: "PUBLIC") { v ->
                         scope.launch {
                             if (HydraAccountApi.setVisibility(profile = v)) HydraAccountApi.profile()
                         }
                     }
                     Spacer(Modifier.height(8.dp))
-                    VisibilityRow("Visibilidade das lembranças", user?.souvenirsVisibility ?: "PUBLIC") { v ->
+                    VisibilityRow(tr("Visibilidade das lembranças"), user?.souvenirsVisibility ?: "PUBLIC") { v ->
                         scope.launch {
                             if (HydraAccountApi.setVisibility(souvenirs = v)) HydraAccountApi.profile()
                         }
                     }
                 }
 
-                SettingsSection(Icons.Filled.Cloud, "Hydra Cloud", "Assinatura") {
+                SettingsSection(Icons.Filled.Cloud, tr("Hydra Cloud"), tr("Assinatura")) {
                     val sub = user?.subscription
                     val active = runCatching {
                         sub?.expiresAt?.let { java.time.Instant.parse(it) > java.time.Instant.now() } ?: false
@@ -413,7 +420,7 @@ private fun AccountPage(onBack: () -> Unit) {
                     }
                     Text(
                         when {
-                            sub == null -> "Sem assinatura"
+                            sub == null -> tr("Sem assinatura")
                             active -> "Ativa até $date"
                             else -> "Expirada em $date"
                         },
@@ -427,18 +434,18 @@ private fun AccountPage(onBack: () -> Unit) {
                             scope.launch {
                                 val url = HydraAccountApi.checkoutUrl()
                                 if (url != null) uri.openUri(url)
-                                else message = "Não foi possível abrir o checkout"
+                                else message = tr("Não foi possível abrir o checkout")
                             }
                         },
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text("Renovar Hydra Cloud") }
+                    ) { Text(tr("Renovar Hydra Cloud")) }
                 }
 
-                SettingsSection(Icons.Filled.CardGiftcard, "Presentes Hydra Cloud", "Receber presentes") {
+                SettingsSection(Icons.Filled.CardGiftcard, tr("Presentes Hydra Cloud"), tr("Receber presentes")) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(
-                                "Permitir que outros usuários me presenteiem",
+                                tr("Permitir que outros usuários me presenteiem"),
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }
@@ -453,12 +460,12 @@ private fun AccountPage(onBack: () -> Unit) {
                     }
                 }
 
-                SettingsSection(Icons.Filled.Block, "Usuários bloqueados", "Bloqueios da conta") {
+                SettingsSection(Icons.Filled.Block, tr("Usuários bloqueados"), tr("Bloqueios da conta")) {
                     Text(
                         when (blocks) {
-                            null -> "Carregando..."
-                            0 -> "Você não bloqueou nenhum usuário"
-                            1 -> "1 usuário bloqueado"
+                            null -> tr("Carregando...")
+                            0 -> tr("Você não bloqueou nenhum usuário")
+                            1 -> tr("1 usuário bloqueado")
                             else -> "$blocks usuários bloqueados"
                         },
                         style = MaterialTheme.typography.bodyMedium,
@@ -466,7 +473,7 @@ private fun AccountPage(onBack: () -> Unit) {
                     )
                 }
 
-                SettingsSection(Icons.Filled.Lock, "Segurança", "Email e senha") {
+                SettingsSection(Icons.Filled.Lock, tr("Segurança"), tr("Email e senha")) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(
                             onClick = {
@@ -478,7 +485,7 @@ private fun AccountPage(onBack: () -> Unit) {
                         ) {
                             Icon(Icons.Filled.Email, null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("Atualizar email", maxLines = 1)
+                            Text(tr("Atualizar email"), maxLines = 1)
                         }
                         OutlinedButton(
                             onClick = {
@@ -490,14 +497,14 @@ private fun AccountPage(onBack: () -> Unit) {
                         ) {
                             Icon(Icons.Filled.Lock, null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("Atualizar senha", maxLines = 1)
+                            Text(tr("Atualizar senha"), maxLines = 1)
                         }
                     }
                 }
 
-                SettingsSection(Icons.Filled.Refresh, "Sincronização", "Biblioteca e fontes da conta") {
+                SettingsSection(Icons.Filled.Refresh, tr("Sincronização"), tr("Biblioteca e fontes da conta")) {
                     Text(
-                        "Baixa a biblioteca e as fontes de download vinculadas a sua conta Hydra.",
+                        tr("Baixa a biblioteca e as fontes de download vinculadas a sua conta Hydra."),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -513,7 +520,7 @@ private fun AccountPage(onBack: () -> Unit) {
                             Icon(Icons.Filled.Refresh, null, modifier = Modifier.size(18.dp))
                         }
                         Spacer(Modifier.width(8.dp))
-                        Text(if (syncing) "Sincronizando..." else "Sincronizar agora")
+                        Text(if (syncing) tr("Sincronizando...") else tr("Sincronizar agora"))
                     }
                     message?.let {
                         Spacer(Modifier.height(8.dp))
@@ -530,7 +537,7 @@ private fun AccountPage(onBack: () -> Unit) {
                         }
                     },
                     modifier = Modifier.fillMaxWidth()
-                ) { Text("Sair da conta") }
+                ) { Text(tr("Sair da conta")) }
             }
         }
     }
@@ -594,7 +601,7 @@ private fun SettingsPageScaffold(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar")
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, tr("Voltar"))
             }
             Text(
                 title,
@@ -717,10 +724,10 @@ private fun PickerRow(
 
 @OptIn(ExperimentalMaterial3Api::class)
 private enum class DebridService(val id: String, val label: String, val subtitle: String) {
-    REAL_DEBRID("rd", "Real-Debrid", "Torrents e hosters processados no cloud"),
-    PREMIUMIZE("premiumize", "Premiumize", "Cloud downloads com torrent e usenet"),
-    ALLDEBRID("alldebrid", "AllDebrid", "Downloads de torrents e hosters"),
-    TORBOX("torbox", "TorBox", "Downloads de torrents e hosters")
+    REAL_DEBRID("rd", tr("Real-Debrid"), tr("Torrents e hosters processados no cloud")),
+    PREMIUMIZE("premiumize", tr("Premiumize"), tr("Cloud downloads com torrent e usenet")),
+    ALLDEBRID("alldebrid", tr("AllDebrid"), tr("Downloads de torrents e hosters")),
+    TORBOX("torbox", tr("TorBox"), tr("Downloads de torrents e hosters"))
 }
 
 @Composable
@@ -736,30 +743,30 @@ private fun IntegracoesPage(onBack: () -> Unit) {
     val pmKey by AppStore.premiumizeKey.collectAsState()
     val adKey by AppStore.alldebridKey.collectAsState()
     val tbKey by AppStore.torboxKey.collectAsState()
-    SettingsPageScaffold("Integrações", onBack) {
+    SettingsPageScaffold(tr("Integrações"), onBack) {
         Text(
-            "Serviços Debrid são downloaders premium de internet.",
+            tr("Serviços Debrid são downloaders premium de internet."),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(Modifier.height(4.dp))
         NavRow(
-            Icons.Filled.CloudDownload, "Real-Debrid",
-            if (rdKey.isBlank()) "Não configurado" else "Conectado"
+            Icons.Filled.CloudDownload, tr("Real-Debrid"),
+            if (rdKey.isBlank()) tr("Não configurado") else tr("Conectado")
         ) { service = DebridService.REAL_DEBRID }
         NavRow(
-            Icons.Filled.Cloud, "Premiumize",
-            if (pmKey.isBlank()) "Não configurado" else "Conectado",
+            Icons.Filled.Cloud, tr("Premiumize"),
+            if (pmKey.isBlank()) tr("Não configurado") else tr("Conectado"),
             beta = true
         ) { service = DebridService.PREMIUMIZE }
         NavRow(
-            Icons.Filled.Cloud, "AllDebrid",
-            if (adKey.isBlank()) "Não configurado" else "Conectado",
+            Icons.Filled.Cloud, tr("AllDebrid"),
+            if (adKey.isBlank()) tr("Não configurado") else tr("Conectado"),
             beta = true
         ) { service = DebridService.ALLDEBRID }
         NavRow(
-            Icons.Filled.Cloud, "TorBox",
-            if (tbKey.isBlank()) "Não configurado" else "Conectado",
+            Icons.Filled.Cloud, tr("TorBox"),
+            if (tbKey.isBlank()) tr("Não configurado") else tr("Conectado"),
             beta = true
         ) { service = DebridService.TORBOX }
     }
@@ -789,10 +796,10 @@ private fun DebridServicePage(service: DebridService, onBack: () -> Unit) {
     }
 
     val placeholder = when (service) {
-        DebridService.REAL_DEBRID -> "real-debrid.com/apitoken"
-        DebridService.PREMIUMIZE -> "premiumize.me/account"
-        DebridService.ALLDEBRID -> "alldebrid.com/apikeys"
-        DebridService.TORBOX -> "torbox.app/settings"
+        DebridService.REAL_DEBRID -> tr("real-debrid.com/apitoken")
+        DebridService.PREMIUMIZE -> tr("premiumize.me/account")
+        DebridService.ALLDEBRID -> tr("alldebrid.com/apikeys")
+        DebridService.TORBOX -> tr("torbox.app/settings")
     }
 
     SettingsPageScaffold(service.label, onBack) {
@@ -805,7 +812,7 @@ private fun DebridServicePage(service: DebridService, onBack: () -> Unit) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     BetaInfoButton()
                     Text(
-                        "Função em beta, toque no ícone para saber mais",
+                        tr("Função em beta, toque no ícone para saber mais"),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -815,7 +822,7 @@ private fun DebridServicePage(service: DebridService, onBack: () -> Unit) {
             OutlinedTextField(
                 value = keyInput,
                 onValueChange = { keyInput = it },
-                label = { Text("Chave da API") },
+                label = { Text(tr("Chave da API")) },
                 placeholder = { Text(placeholder) },
                 singleLine = true,
                 shape = RoundedCornerShape(14.dp),
@@ -826,7 +833,7 @@ private fun DebridServicePage(service: DebridService, onBack: () -> Unit) {
                     IconButton(onClick = { keyVisible = !keyVisible }) {
                         Icon(
                             if (keyVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                            contentDescription = if (keyVisible) "Ocultar chave" else "Mostrar chave",
+                            contentDescription = if (keyVisible) tr("Ocultar chave") else tr("Mostrar chave"),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -856,17 +863,17 @@ private fun DebridServicePage(service: DebridService, onBack: () -> Unit) {
                         checking = false
                     }
                 }
-            ) { Text(if (checking) "Verificando..." else "Validar e salvar") }
+            ) { Text(if (checking) tr("Verificando...") else tr("Validar e salvar")) }
             if (savedKey.isNotBlank()) {
                 TextButton(
                     onClick = {
                         save("")
                         keyInput = ""
-                        status = "Chave removida"
+                        status = tr("Chave removida")
                         ok = false
                     },
                     modifier = Modifier.fillMaxWidth()
-                ) { Text("Remover chave") }
+                ) { Text(tr("Remover chave")) }
             }
             status?.let {
                 Spacer(Modifier.height(8.dp))
@@ -890,16 +897,16 @@ private fun FontesPage(onBack: () -> Unit) {
     var addingSource by remember { mutableStateOf(false) }
     var sourceMsg by remember { mutableStateOf<String?>(null) }
 
-    SettingsPageScaffold("Fontes de download", onBack) {
+    SettingsPageScaffold(tr("Fontes de download"), onBack) {
         SettingsSection(
             icon = Icons.Filled.Link,
-            title = "Adicionar fonte",
-            subtitle = "Registrada via servidor Hydra Cloud"
+            title = tr("Adicionar fonte"),
+            subtitle = tr("Registrada via servidor Hydra Cloud")
         ) {
             OutlinedTextField(
                 value = sourceUrl,
                 onValueChange = { sourceUrl = it },
-                label = { Text("URL da fonte (.json)") },
+                label = { Text(tr("URL da fonte (.json)")) },
                 singleLine = true,
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -925,12 +932,12 @@ private fun FontesPage(onBack: () -> Unit) {
                             "registrada via Hydra: ${registered.name}" else "salva local: $url")
                         sourceMsg = if (registered != null)
                             "Fonte \"${registered.name}\" registrada"
-                        else "API do Hydra indisponível — salva localmente"
+                        else tr("API do Hydra indisponível — salva localmente")
                         sourceUrl = ""
                         addingSource = false
                     }
                 }
-            ) { Text(if (addingSource) "Registrando..." else "Adicionar fonte") }
+            ) { Text(if (addingSource) tr("Registrando...") else tr("Adicionar fonte")) }
             sourceMsg?.let {
                 Spacer(Modifier.height(8.dp))
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
@@ -942,7 +949,7 @@ private fun FontesPage(onBack: () -> Unit) {
         }
         if (sources.isEmpty()) {
             Text(
-                "Nenhuma fonte configurada",
+                tr("Nenhuma fonte configurada"),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 4.dp)
@@ -1003,7 +1010,7 @@ private fun SourceRow(source: DownloadSource) {
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        "Hydra",
+                        tr("Hydra"),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.secondary,
                         fontWeight = FontWeight.Bold
@@ -1012,7 +1019,7 @@ private fun SourceRow(source: DownloadSource) {
                 Spacer(Modifier.width(4.dp))
             }
             IconButton(onClick = { AppStore.removeSource(source.id) }) {
-                Icon(Icons.Filled.Delete, "Remover", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Icons.Filled.Delete, tr("Remover"), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -1029,8 +1036,14 @@ private fun AppConfigPage(onBack: () -> Unit) {
     val wifiOnly by AppStore.wifiOnly.collectAsState()
     val maxConcurrent by AppStore.maxConcurrent.collectAsState()
     val speedLimitKbps by AppStore.speedLimitKbps.collectAsState()
+    val language by AppStore.language.collectAsState()
     var folderMsg by remember { mutableStateOf<String?>(null) }
     var picker by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    var cacheBytes by remember { mutableStateOf<Long?>(null) }
+    LaunchedEffect(Unit) {
+        cacheBytes = withContext(Dispatchers.IO) { CacheCleaner.sizeBytes(context) }
+    }
     val folderPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
@@ -1041,20 +1054,66 @@ private fun AppConfigPage(onBack: () -> Unit) {
                 AppStore.setDownloadDir(path)
                 folderMsg = "Pasta definida: $path"
             } else {
-                folderMsg = "Pasta não suportada — escolha no armazenamento do aparelho"
+                folderMsg = tr("Pasta não suportada — escolha no armazenamento do aparelho")
             }
         }
     }
 
-    SettingsPageScaffold("Configurações do app", onBack) {
+    SettingsPageScaffold(tr("Configurações do app"), onBack) {
+        SettingsSection(
+            icon = Icons.Filled.Language,
+            title = tr("Idioma"),
+            subtitle = tr("Idioma do aplicativo")
+        ) {
+            PickerRow(
+                tr("Idioma"),
+                tr("Português e inglês"),
+                if (language == "en") tr("English") else tr("Português")
+            ) { picker = "lang" }
+        }
+
+        SettingsSection(
+            icon = Icons.Filled.CleaningServices,
+            title = tr("Armazenamento"),
+            subtitle = tr("Cache de imagens e arquivos temporários")
+        ) {
+            Text(
+                tr("Cache do app") + ": " +
+                    (cacheBytes?.let { formatBytes(it) } ?: tr("calculando...")),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(12.dp))
+            FilledTonalButton(
+                onClick = {
+                    scope.launch {
+                        withContext(Dispatchers.IO) { CacheCleaner.clear(context) }
+                        cacheBytes = withContext(Dispatchers.IO) { CacheCleaner.sizeBytes(context) }
+                        Toast.makeText(context, tr("Cache limpo"), Toast.LENGTH_SHORT).show()
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Filled.CleaningServices, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(tr("Limpar cache"))
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(
+                tr("Não apaga seus downloads nem as configurações."),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
         SettingsSection(
             icon = Icons.Filled.Folder,
-            title = "Pasta de downloads",
-            subtitle = "Onde os jogos serão salvos"
+            title = tr("Pasta de downloads"),
+            subtitle = tr("Onde os jogos serão salvos")
         ) {
             Text(
                 if (downloadDir.isBlank())
-                    "Padrão: /storage/emulated/0/Download/HYDROID"
+                    tr("Padrão: /storage/emulated/0/Download/HYDROID")
                 else downloadDir,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1066,16 +1125,16 @@ private fun AppConfigPage(onBack: () -> Unit) {
             ) {
                 Icon(Icons.Filled.Folder, null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Escolher pasta")
+                Text(tr("Escolher pasta"))
             }
             if (downloadDir.isNotBlank()) {
                 TextButton(
                     onClick = {
                         AppStore.setDownloadDir("")
-                        folderMsg = "Pasta padrão restaurada"
+                        folderMsg = tr("Pasta padrão restaurada")
                     },
                     modifier = Modifier.fillMaxWidth()
-                ) { Text("Usar padrão") }
+                ) { Text(tr("Usar padrão")) }
             }
             folderMsg?.let {
                 Spacer(Modifier.height(8.dp))
@@ -1085,18 +1144,18 @@ private fun AppConfigPage(onBack: () -> Unit) {
 
         SettingsSection(
             icon = Icons.Filled.Settings,
-            title = "Pós-download",
-            subtitle = "Ações automáticas ao terminar"
+            title = tr("Pós-download"),
+            subtitle = tr("Ações automáticas ao terminar")
         ) {
             SwitchRow(
-                "Extrair automaticamente",
-                "Descompacta .zip e .rar quando o download terminar",
+                tr("Extrair automaticamente"),
+                tr("Descompacta .zip e .rar quando o download terminar"),
                 autoExtract
             ) { AppStore.setAutoExtract(it) }
             SwitchRow(
-                "Apagar arquivo após extrair",
-                if (autoExtract) "Remove o .zip/.rar para liberar o espaço"
-                else "Ative a extração automática para usar",
+                tr("Apagar arquivo após extrair"),
+                if (autoExtract) tr("Remove o .zip/.rar para liberar o espaço")
+                else tr("Ative a extração automática para usar"),
                 deleteArchive,
                 enabled = autoExtract
             ) { AppStore.setDeleteArchive(it) }
@@ -1104,25 +1163,25 @@ private fun AppConfigPage(onBack: () -> Unit) {
 
         SettingsSection(
             icon = Icons.Filled.Download,
-            title = "Downloads",
-            subtitle = "Fila, rede e velocidade"
+            title = tr("Downloads"),
+            subtitle = tr("Fila, rede e velocidade")
         ) {
             SwitchRow(
-                "Só baixar no Wi-Fi",
-                "Downloads ficam aguardando até conectar numa rede Wi-Fi",
+                tr("Só baixar no Wi-Fi"),
+                tr("Downloads ficam aguardando até conectar numa rede Wi-Fi"),
                 wifiOnly
             ) {
                 AppStore.setWifiOnly(it)
                 DownloadEngine.kickQueue()
             }
             PickerRow(
-                "Downloads simultâneos",
-                "Quantos downloads rodam ao mesmo tempo",
-                if (maxConcurrent == 0) "Sem limite" else maxConcurrent.toString()
+                tr("Downloads simultâneos"),
+                tr("Quantos downloads rodam ao mesmo tempo"),
+                if (maxConcurrent == 0) tr("Sem limite") else maxConcurrent.toString()
             ) { picker = "concurrent" }
             PickerRow(
-                "Limite de velocidade",
-                "Velocidade máxima por download",
+                tr("Limite de velocidade"),
+                tr("Velocidade máxima por download"),
                 speedLimitKbpsLabel(speedLimitKbps)
             ) { picker = "speed" }
         }
@@ -1131,12 +1190,12 @@ private fun AppConfigPage(onBack: () -> Unit) {
     if (picker == "concurrent") {
         AlertDialog(
             onDismissRequest = { picker = null },
-            title = { Text("Downloads simultâneos") },
+            title = { Text(tr("Downloads simultâneos")) },
             text = {
                 Column {
                     listOf(1, 2, 3, 0).forEach { n ->
                         Text(
-                            if (n == 0) "Sem limite" else n.toString(),
+                            if (n == 0) tr("Sem limite") else n.toString(),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
@@ -1152,14 +1211,14 @@ private fun AppConfigPage(onBack: () -> Unit) {
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { picker = null }) { Text("Fechar") } }
+            confirmButton = { TextButton(onClick = { picker = null }) { Text(tr("Fechar")) } }
         )
     }
 
     if (picker == "speed") {
         AlertDialog(
             onDismissRequest = { picker = null },
-            title = { Text("Limite de velocidade") },
+            title = { Text(tr("Limite de velocidade")) },
             text = {
                 Column {
                     listOf(0, 512, 1024, 2048, 5120, 10240).forEach { v ->
@@ -1180,13 +1239,43 @@ private fun AppConfigPage(onBack: () -> Unit) {
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { picker = null }) { Text("Fechar") } }
+            confirmButton = { TextButton(onClick = { picker = null }) { Text(tr("Fechar")) } }
+        )
+    }
+
+    if (picker == "lang") {
+        AlertDialog(
+            onDismissRequest = { picker = null },
+            title = { Text(tr("Idioma")) },
+            text = {
+                Column {
+                    listOf("pt" to tr("Português (Brasil)"), "en" to tr("English (US)")).forEach { (code, label) ->
+                        Text(
+                            label,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    picker = null
+                                    if (AppStore.language.value != code) {
+                                        AppStore.setLanguage(code)
+                                        (context as? android.app.Activity)?.recreate()
+                                    }
+                                }
+                                .padding(vertical = 12.dp),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (language == code) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { picker = null }) { Text(tr("Fechar")) } }
         )
     }
 }
 
 private fun speedLimitKbpsLabel(kbps: Int): String = when {
-    kbps <= 0 -> "Sem limite"
+    kbps <= 0 -> tr("Sem limite")
     kbps < 1024 -> "$kbps KB/s"
     else -> "${kbps / 1024} MB/s"
 }
@@ -1199,11 +1288,11 @@ private fun LogsPage(onBack: () -> Unit) {
     var logSize by remember { mutableStateOf(AppLog.sizeBytes()) }
     var logMsg by remember { mutableStateOf<String?>(null) }
 
-    SettingsPageScaffold("Logs e diagnóstico", onBack) {
+    SettingsPageScaffold(tr("Logs e diagnóstico"), onBack) {
         SettingsSection(
             icon = Icons.Filled.Description,
-            title = "Arquivo de log",
-            subtitle = "Histórico técnico para reportar problemas"
+            title = tr("Arquivo de log"),
+            subtitle = tr("Histórico técnico para reportar problemas")
         ) {
             Text(
                 "Tamanho: ${formatBytes(logSize)}",
@@ -1215,7 +1304,7 @@ private fun LogsPage(onBack: () -> Unit) {
                 onClick = {
                     val file = AppLog.file()
                     if (file == null || !file.exists()) {
-                        logMsg = "Nenhum log ainda"
+                        logMsg = tr("Nenhum log ainda")
                         return@FilledTonalButton
                     }
                     runCatching {
@@ -1228,7 +1317,7 @@ private fun LogsPage(onBack: () -> Unit) {
                             addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         }
                         context.startActivity(
-                            android.content.Intent.createChooser(intent, "Compartilhar logs")
+                            android.content.Intent.createChooser(intent, tr("Compartilhar logs"))
                         )
                     }.onFailure { logMsg = "Falha ao compartilhar: ${it.message}" }
                 },
@@ -1236,16 +1325,16 @@ private fun LogsPage(onBack: () -> Unit) {
             ) {
                 Icon(Icons.Filled.Description, null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Compartilhar logs")
+                Text(tr("Compartilhar logs"))
             }
             TextButton(
                 onClick = {
                     AppLog.clear()
                     logSize = AppLog.sizeBytes()
-                    logMsg = "Logs apagados"
+                    logMsg = tr("Logs apagados")
                 },
                 modifier = Modifier.fillMaxWidth()
-            ) { Text("Limpar logs") }
+            ) { Text(tr("Limpar logs")) }
             logMsg?.let {
                 Spacer(Modifier.height(8.dp))
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
@@ -1259,28 +1348,28 @@ private fun LogsPage(onBack: () -> Unit) {
 @Composable
 private fun CreditosPage(onBack: () -> Unit) {
     val uriHandler = LocalUriHandler.current
-    SettingsPageScaffold("Créditos", onBack) {
+    SettingsPageScaffold(tr("Créditos"), onBack) {
         SettingsSection(
             icon = Icons.Filled.Favorite,
-            title = "Hydroid 0.6",
-            subtitle = "fork de estudo do Hydra Launcher (MIT)"
+            title = tr("Hydroid 0.6"),
+            subtitle = tr("fork de estudo do Hydra Launcher (MIT)")
         ) {
             Text(
-                "Port Android não-oficial. Downloads acontecem via suas fontes configuradas " +
-                    "e Real-Debrid. Este app não hospeda nem distribui conteúdo.",
+                tr("Port Android não-oficial. Downloads acontecem via suas fontes configuradas ") +
+                    tr("e Real-Debrid. Este app não hospeda nem distribui conteúdo."),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(Modifier.height(14.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "Desenvolvido por",
+                    tr("Desenvolvido por"),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(Modifier.width(6.dp))
                 Text(
-                    "DuduSync",
+                    tr("DuduSync"),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -1294,7 +1383,7 @@ private fun CreditosPage(onBack: () -> Unit) {
                         .padding(horizontal = 10.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        "Repositório",
+                        tr("Repositório"),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -1309,7 +1398,7 @@ private fun CreditosPage(onBack: () -> Unit) {
             ) {
                 Icon(Icons.Filled.Favorite, null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
-                Text(if (DONATION_URL.isNotBlank()) "Apoiar com Pix" else "Doações em breve")
+                Text(if (DONATION_URL.isNotBlank()) tr("Apoiar com Pix") else tr("Doações em breve"))
             }
         }
     }
