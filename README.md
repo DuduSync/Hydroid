@@ -7,6 +7,7 @@
   <img src="https://img.shields.io/badge/Android-8.0%2B-8B93FF?style=flat-square&logo=android&logoColor=white" alt="Android 8.0+"/>
   <img src="https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Kotlin + Jetpack Compose"/>
   <img src="https://img.shields.io/github/v/release/DuduSync/Hydroid?style=flat-square&color=5EEAD4&label=release" alt="Release"/>
+  <a href="https://hits.sh/github.com/DuduSync/Hydroid/"><img src="https://hits.sh/github.com/DuduSync/Hydroid.svg?label=visualiza%C3%A7%C3%B5es&logo=github&color=5EEAD4&style=flat-square" alt="Visualizações"/></a>
 </p>
 
 <p align="center">
@@ -19,16 +20,6 @@
 APK universal assinado (arm64 + x86_64):
 
 ➡️ [**Hydroid v0.6 — Releases**](https://github.com/DuduSync/Hydroid/releases/latest)
-
-## Screenshots
-
-| Jogo | Catálogo | Repacks e métodos | Downloads |
-| :---: | :---: | :---: | :---: |
-| ![Jogo](docs/screenshots/jogo.jpg) | ![Catálogo](docs/screenshots/catalogo.jpg) | ![Métodos de download](docs/screenshots/metodos.jpg) | ![Downloads](docs/screenshots/downloads.jpg) |
-
-| Biblioteca | Ajustes do app |
-| :---: | :---: |
-| ![Biblioteca](docs/screenshots/biblioteca.jpg) | ![Ajustes](docs/screenshots/ajustes.jpg) |
 
 ## Funcionalidades
 
@@ -131,10 +122,6 @@ O Hydroid não hospeda, indexa nem distribui nenhum conteúdo. As fontes de down
 - [Hydra Launcher](https://github.com/hydralauncher/hydra) — projeto original (MIT); grande parte da lógica, das APIs e do ecossistema de fontes vem dele
 - Port Android por [DuduSync](https://github.com/DuduSync)
 - Doações (Pix): [nubank.com.br/cobrar/7rfap](https://nubank.com.br/cobrar/7rfap/6aa35e97-c27c-479b-b74b-dbd122db9877)
-
-<p align="center">
-  <img src="docs/screenshots/creditos.jpg" alt="Créditos" width="320"/>
-</p>
 
 ## Apoie o projeto
 
