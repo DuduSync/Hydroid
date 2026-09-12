@@ -48,6 +48,8 @@ object HostResolver {
                 }
                 else -> Result.Ok(uri, "")   // host desconhecido: baixa direto (comportamento antigo)
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e   // cancelamento nao vira erro de hoster
         } catch (e: Exception) {
             AppLog.e("Hoster", "$host: falha resolvendo ${uri.take(90)}", e)
             Result.Fail(host, e.message ?: tf("%s: não consegui resolver o link", host))

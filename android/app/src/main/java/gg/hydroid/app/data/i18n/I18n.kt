@@ -176,6 +176,7 @@ private val EN = mapOf<String, String>(
     "Limpar" to "Clear",
     "Limpar cache" to "Clear cache",
     "Limpar logs" to "Clear logs",
+    "Link inválido" to "Invalid link",
     "Link manual" to "Manual link",
     "Logs apagados" to "Logs cleared",
     "Logs e diagnóstico" to "Logs & diagnostics",

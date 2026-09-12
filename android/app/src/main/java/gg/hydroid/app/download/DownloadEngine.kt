@@ -38,6 +38,14 @@ object DownloadEngine {
     @Volatile private var pumping = false
 
     fun start(context: Context, id: String, title: String, uri: String, method: DownloadMethod) {
+        // link limpo/validado (campo manual as vezes chega com espacos ou texto emendado)
+        val cleanUri = normalizeUri(uri)
+        if (cleanUri == null) {
+            AppLog.w("Download", "link invalido recusado: ${uri.take(120)}")
+            post(ActiveDownload(id, title, stage = "erro", method = tagOf(method),
+                error = tr("Link inválido")))
+            return
+        }
         // mesmo titulo: substitui o download anterior (os dois escreveriam no MESMO arquivo)
         // id != id: retomar um download pausado nao pode cancelar ele mesmo
         AppStore.downloads.value
@@ -48,11 +56,24 @@ object DownloadEngine {
             }
         synchronized(this) {
             queue.removeAll { it.id == id }
-            queue.add(Queued(id, title, uri, method))
+            queue.add(Queued(id, title, cleanUri, method))
         }
         AppLog.i("Download", "enfileirado: $title [${tagOf(method)}] fila=${queue.size}")
-        post(ActiveDownload(id, title, stage = "na fila", method = tagOf(method), uri = uri))
+        post(ActiveDownload(id, title, stage = "na fila", method = tagOf(method), uri = cleanUri))
         pump()
+    }
+
+    // trim, sem espacos/quebras, corrige "https//" e aceita magnet/http(s) sem esquema
+    fun normalizeUri(raw: String): String? {
+        var u = raw.trim().replace(Regex("\\s+"), "")
+        u = u.replace(Regex("^https//", RegexOption.IGNORE_CASE), "https://")
+            .replace(Regex("^http//", RegexOption.IGNORE_CASE), "http://")
+        return when {
+            u.startsWith("magnet:", ignoreCase = true) -> u
+            u.startsWith("http://", ignoreCase = true) || u.startsWith("https://", ignoreCase = true) -> u
+            Regex("^[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}(/.*)?$").matches(u) -> "https://$u"
+            else -> null
+        }
     }
 
     // chamado quando a rede muda (ex.: Wi-Fi voltou); os posts tambem chamam
@@ -155,6 +176,11 @@ object DownloadEngine {
                     else "cancelado pelo usuário: $title")
                 throw e
             } catch (e: Exception) {
+                // cancelamento embrulhado (ex.: dentro de runCatching) nao vira card de erro
+                if (isCancellation(e)) {
+                    AppLog.i("Download", "cancelado durante o download: $title")
+                    throw CancellationException("cancelado").also { it.initCause(e) }
+                }
                 AppLog.e("Download", "falhou: $title", e)
                 post(ActiveDownload(id, title, stage = "erro", method = methodTag,
                     error = e.message ?: e.toString()))
@@ -513,6 +539,16 @@ object DownloadEngine {
         post(ActiveDownload(id, title, stage = "concluido", method = methodTag,
             progress = 1f, savePath = finalName.absolutePath))
         afterDownload(context, id, title, finalName.absolutePath, methodTag)
+    }
+
+    // cancelamento pode vir embrulhado em outra excecao (runCatching, okhttp etc.)
+    private fun isCancellation(e: Throwable): Boolean {
+        var t: Throwable? = e
+        while (t != null) {
+            if (t is CancellationException) return true
+            t = t.cause
+        }
+        return false
     }
 
     private fun safeName(title: String) =

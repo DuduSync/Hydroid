@@ -638,12 +638,20 @@ fun GameDetailScreen(vm: CatalogViewModel) {
             ManualDownloadCard(
                 title = details?.name ?: game.name,
                 onShowOptions = { uri ->
-                    optionsFor = DownloadSheet(
-                        title = details?.name ?: game.name,
-                        fileSize = null,
-                        source = tr("Link manual"),
-                        uris = listOf(uri)
-                    )
+                    // link colado sem esquema (ex.: gofile.io/d/x) vira https:// pra aparecer
+                    // a opcao "Direto" no sheet; link invalido nem abre
+                    val clean = DownloadEngine.normalizeUri(uri)
+                    if (clean == null) {
+                        AppLog.w("Catalogo", "link manual invalido: ${uri.take(80)}")
+                        scope.launch { snackbar.showSnackbar(tr("Link inválido")) }
+                    } else {
+                        optionsFor = DownloadSheet(
+                            title = details?.name ?: game.name,
+                            fileSize = null,
+                            source = tr("Link manual"),
+                            uris = listOf(clean)
+                        )
+                    }
                 }
             )
 
@@ -829,8 +837,10 @@ fun GameDetailScreen(vm: CatalogViewModel) {
         }
 
         optionsFor?.let { sheet ->
+            val optionsSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
             ModalBottomSheet(
                 onDismissRequest = { optionsFor = null },
+                sheetState = optionsSheetState,
                 containerColor = MaterialTheme.colorScheme.surfaceContainer
             ) {
                 DownloadOptionsSheet(
@@ -848,8 +858,10 @@ fun GameDetailScreen(vm: CatalogViewModel) {
         }
 
         if (sourcesOpen) {
+            val sourcesSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
             ModalBottomSheet(
                 onDismissRequest = { sourcesOpen = false },
+                sheetState = sourcesSheetState,
                 containerColor = MaterialTheme.colorScheme.surfaceContainer
             ) {
                 Column(
@@ -910,6 +922,7 @@ private fun DownloadOptionsSheet(
     Column(
         Modifier
             .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp)
             .padding(bottom = 36.dp)
     ) {
