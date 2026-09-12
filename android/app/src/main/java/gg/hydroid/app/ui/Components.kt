@@ -62,7 +62,10 @@ val BETA_MESSAGE: String
 @Composable
 fun BetaInfoButton(modifier: Modifier = Modifier) {
     var show by remember { mutableStateOf(false) }
-    IconButton(onClick = { show = true }, modifier = modifier.size(28.dp)) {
+    IconButton(onClick = {
+        gg.hydroid.app.data.log.AppLog.i("UI", "beta: info aberta")
+        show = true
+    }, modifier = modifier.size(28.dp)) {
         Icon(
             Icons.Filled.Info,
             tr("Função em beta"),

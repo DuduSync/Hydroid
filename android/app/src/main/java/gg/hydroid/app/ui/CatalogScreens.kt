@@ -249,7 +249,10 @@ private fun FeaturedHome(vm: CatalogViewModel, featured: Map<String, List<SteamF
                     item {
                         FilterChip(
                             selected = current == key,
-                            onClick = { vm.featuredTab = key },
+                            onClick = {
+                                AppLog.i("UI", "catalogo: filtro $label")
+                                vm.featuredTab = key
+                            },
                             label = { Text(label) }
                         )
                     }
@@ -258,8 +261,9 @@ private fun FeaturedHome(vm: CatalogViewModel, featured: Map<String, List<SteamF
                     FilterChip(
                         selected = false,
                         onClick = {
-                            featured.values.flatten().randomOrNull()
-                                ?.let { vm.openGame(SteamSearchItem(name = it.name, id = it.id)) }
+                            val pick = featured.values.flatten().randomOrNull()
+                            AppLog.i("UI", "catalogo: surpreenda-me -> ${pick?.name ?: "nada"}")
+                            pick?.let { vm.openGame(SteamSearchItem(name = it.name, id = it.id)) }
                         },
                         label = { Text(tr("Surpreenda-me")) },
                         leadingIcon = {
@@ -582,7 +586,10 @@ fun GameDetailScreen(vm: CatalogViewModel) {
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(horizontal = 20.dp)
                 )
-                TextButton(onClick = { descExpanded = !descExpanded }) {
+                TextButton(onClick = {
+                    descExpanded = !descExpanded
+                    AppLog.i("UI", "jogo: descricao ${if (descExpanded) "expandida" else "recolhida"}")
+                }) {
                     Text(if (descExpanded) tr("Ver menos") else tr("Ver mais"))
                 }
             }
@@ -709,7 +716,10 @@ fun GameDetailScreen(vm: CatalogViewModel) {
                                 modifier = Modifier
                                     .size(width = 160.dp, height = 90.dp)
                                     .clip(RoundedCornerShape(8.dp))
-                                    .clickable { fullShot = s.path_full }
+                                    .clickable {
+                                        AppLog.i("UI", "jogo: screenshot $i em tela cheia")
+                                        fullShot = s.path_full
+                                    }
                             )
                         }
                     }
@@ -799,9 +809,11 @@ fun GameDetailScreen(vm: CatalogViewModel) {
                         )
                     }
                     Spacer(Modifier.height(6.dp))
-                    TextButton(onClick = { uriHandler.openUri("https://www.protondb.com/app/${game.id}") }) {
-                        Text(tr("Ver no ProtonDB"))
-                    }
+                    TextButton(onClick = {
+                        AppLog.i("UI", "jogo: abrindo ProtonDB de ${game.name}")
+                        uriHandler.openUri("https://www.protondb.com/app/${game.id}")
+                    }) {
+                        Text(tr("Ver no ProtonDB"))                    }
                 }
             }
 

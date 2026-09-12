@@ -852,7 +852,10 @@ private fun DebridServicePage(service: DebridService, onBack: () -> Unit) {
                 else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 trailingIcon = {
-                    IconButton(onClick = { keyVisible = !keyVisible }) {
+                    IconButton(onClick = {
+                        keyVisible = !keyVisible
+                        AppLog.i("UI", "integracoes: chave ${if (keyVisible) "visivel" else "oculta"}")
+                    }) {
                         Icon(
                             if (keyVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
                             contentDescription = if (keyVisible) tr("Ocultar chave") else tr("Mostrar chave"),
@@ -1093,12 +1096,12 @@ private fun AppConfigPage(onBack: () -> Unit) {
                 tr("Tema"),
                 tr("Sistema, claro, escuro, AMOLED ou glass"),
                 themeLabel(theme)
-            ) { picker = "theme" }
+            ) { AppLog.i("UI", "ajustes: abrir seletor de tema"); picker = "theme" }
             PickerRow(
                 tr("Aba inicial"),
                 tr("Qual aba abre ao iniciar o app"),
                 tabsLabel(startTab)
-            ) { picker = "starttab" }
+            ) { AppLog.i("UI", "ajustes: abrir seletor de aba inicial"); picker = "starttab" }
         }
 
         SettingsSection(
@@ -1110,7 +1113,7 @@ private fun AppConfigPage(onBack: () -> Unit) {
                 tr("Idioma"),
                 tr("Português e inglês"),
                 if (language == "en") tr("English") else tr("Português")
-            ) { picker = "lang" }
+            ) { AppLog.i("UI", "ajustes: abrir seletor de idioma"); picker = "lang" }
         }
 
         SettingsSection(
@@ -1220,12 +1223,12 @@ private fun AppConfigPage(onBack: () -> Unit) {
                 tr("Downloads simultâneos"),
                 tr("Quantos downloads rodam ao mesmo tempo"),
                 if (maxConcurrent == 0) tr("Sem limite") else maxConcurrent.toString()
-            ) { picker = "concurrent" }
+            ) { AppLog.i("UI", "ajustes: abrir seletor de simultaneos"); picker = "concurrent" }
             PickerRow(
                 tr("Limite de velocidade"),
                 tr("Velocidade máxima por download"),
                 speedLimitKbpsLabel(speedLimitKbps)
-            ) { picker = "speed" }
+            ) { AppLog.i("UI", "ajustes: abrir seletor de limite de velocidade"); picker = "speed" }
         }
     }
 
@@ -1492,13 +1495,19 @@ private fun CreditosPage(onBack: () -> Unit) {
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.clickable { uriHandler.openUri("https://github.com/DuduSync") }
+                    modifier = Modifier.clickable {
+                        AppLog.i("UI", "creditos: abrir GitHub do dev")
+                        uriHandler.openUri("https://github.com/DuduSync")
+                    }
                 )
                 Spacer(Modifier.width(10.dp))
                 Box(
                     Modifier
                         .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(8.dp))
-                        .clickable { uriHandler.openUri("https://github.com/DuduSync/Hydroid") }
+                        .clickable {
+                            AppLog.i("UI", "creditos: abrir GitHub do Hydroid")
+                            uriHandler.openUri("https://github.com/DuduSync/Hydroid")
+                        }
                         .padding(horizontal = 10.dp, vertical = 4.dp)
                 ) {
                     Text(
@@ -1511,7 +1520,10 @@ private fun CreditosPage(onBack: () -> Unit) {
             }
             Spacer(Modifier.height(14.dp))
             Button(
-                onClick = { if (DONATION_URL.isNotBlank()) uriHandler.openUri(DONATION_URL) },
+                onClick = {
+                    AppLog.i("UI", "creditos: apoiar com Pix")
+                    if (DONATION_URL.isNotBlank()) uriHandler.openUri(DONATION_URL)
+                },
                 enabled = DONATION_URL.isNotBlank(),
                 modifier = Modifier.fillMaxWidth()
             ) {

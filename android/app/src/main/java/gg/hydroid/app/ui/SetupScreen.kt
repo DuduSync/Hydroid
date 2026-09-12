@@ -124,6 +124,7 @@ fun SetupScreen(onDone: () -> Unit) {
             done = notifGranted,
             actionLabel = tr("Permitir"),
             onAction = {
+                AppLog.i("Setup", "pedindo permissao de notificacao")
                 if (Build.VERSION.SDK_INT >= 33) {
                     notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 } else notifGranted = true
@@ -137,6 +138,7 @@ fun SetupScreen(onDone: () -> Unit) {
             done = batteryOk,
             actionLabel = tr("Abrir ajustes"),
             onAction = {
+                AppLog.i("Setup", "abrindo ajustes de bateria")
                 runCatching {
                     context.startActivity(
                         Intent(
@@ -155,6 +157,7 @@ fun SetupScreen(onDone: () -> Unit) {
             done = fileAccess,
             actionLabel = tr("Permitir"),
             onAction = {
+                AppLog.i("Setup", "pedindo acesso a arquivos")
                 if (Build.VERSION.SDK_INT >= 30) {
                     val intent = Intent(
                         Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
@@ -191,6 +194,7 @@ fun SetupScreen(onDone: () -> Unit) {
             done = downloadDir.isNotBlank(),
             actionLabel = tr("Escolher pasta"),
             onAction = {
+                AppLog.i("Setup", "escolher pasta de downloads (acesso a arquivos=$fileAccess)")
                 if (fileAccess) folderPicker.launch(null)
             }
         )

@@ -264,7 +264,10 @@ fun LibraryScreen(onOpenGame: (LibraryGame) -> Unit = {}) {
                             AppLog.i("UI", "biblioteca: abrindo ${game.name} (${game.appId})")
                             onOpenGame(game)
                         },
-                        onLongClick = { actionsFor = game },
+                        onLongClick = {
+                            AppLog.i("UI", "biblioteca: menu do jogo ${game.name}")
+                            actionsFor = game
+                        },
                         onToggleFavorite = { AppStore.toggleFavorite(game.appId) }
                     )
                 }
@@ -353,7 +356,10 @@ fun LibraryScreen(onOpenGame: (LibraryGame) -> Unit = {}) {
                     .size(40.dp)
                     .glassChipSurface(glassTheme = glassTheme, selected = false, shape = CircleShape)
             ) {
-                IconButton(onClick = { manageOpen = true }) {
+                IconButton(onClick = {
+                    AppLog.i("UI", "biblioteca: gerenciar colecoes")
+                    manageOpen = true
+                }) {
                     Icon(
                         Icons.Filled.CreateNewFolder, tr("Gerenciar coleções"),
                         modifier = Modifier.size(18.dp)
@@ -369,7 +375,11 @@ fun LibraryScreen(onOpenGame: (LibraryGame) -> Unit = {}) {
             game = game,
             onDismiss = { actionsFor = null },
             onOpen = { actionsFor = null; onOpenGame(game) },
-            onAddToCollection = { actionsFor = null; collectionsFor = game },
+            onAddToCollection = {
+                AppLog.i("UI", "biblioteca: colecoes de ${game.name}")
+                actionsFor = null
+                collectionsFor = game
+            },
             onShortcut = { AppLog.i("UI", "atalho: fixando ${game.name}"); actionsFor = null; pinGameShortcut(context, game) },
             onRemove = { actionsFor = null; AppStore.removeFromLibrary(game.appId) }
         )

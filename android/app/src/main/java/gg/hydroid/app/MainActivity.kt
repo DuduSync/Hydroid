@@ -133,6 +133,16 @@ class MainActivity : ComponentActivity() {
         handleOpenIntent(intent)
     }
 
+    override fun onStart() {
+        super.onStart()
+        gg.hydroid.app.data.log.AppLog.i("App", "app em primeiro plano")
+    }
+
+    override fun onStop() {
+        gg.hydroid.app.data.log.AppLog.i("App", "app em segundo plano")
+        super.onStop()
+    }
+
     // atalho da tela inicial: gg.hydroid.app.OPEN_GAME com appId do jogo
     private fun handleOpenIntent(intent: Intent?) {
         val appId = intent?.getLongExtra("appId", -1L) ?: -1L
