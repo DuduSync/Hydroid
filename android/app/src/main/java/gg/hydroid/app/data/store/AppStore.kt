@@ -57,8 +57,8 @@ object AppStore {
         appContext = context.applicationContext
         _sources.value = load<List<DownloadSource>>("sources.json") ?: emptyList()
         _library.value = load<List<LibraryGame>>("library.json") ?: emptyList()
-        // so cards terminais sobrevivem a restart (ativos/cloud sao de sessao)
-        val terminal = setOf("concluido", "erro")
+        // terminais e pausados sobrevivem a restart (pausado pode continuar depois)
+        val terminal = setOf("concluido", "erro", "pausado")
         val cleaned = (load<List<ActiveDownload>>("downloads.json") ?: emptyList())
             .filter { it.stage in terminal }
         commit("downloads.json", cleaned, _downloads)
@@ -89,8 +89,18 @@ object AppStore {
     )
 
     fun setSetupDone(done: Boolean) { _setupDone.value = done; savePrefs() }
-    fun setAutoExtract(v: Boolean) { _autoExtract.value = v; savePrefs() }
-    fun setDeleteArchive(v: Boolean) { _deleteArchive.value = v; savePrefs() }
+
+    // apagar arquivo so faz sentido junto de extrair automaticamente
+    fun setAutoExtract(v: Boolean) {
+        _autoExtract.value = v
+        if (!v) _deleteArchive.value = false
+        savePrefs()
+    }
+
+    fun setDeleteArchive(v: Boolean) {
+        _deleteArchive.value = v && _autoExtract.value
+        savePrefs()
+    }
     fun setDownloadDir(path: String) { _downloadDir.value = path; savePrefs() }
 
     // destino dos downloads: pasta escolhida pelo usuario ou padrao do app
@@ -174,10 +184,13 @@ object AppStore {
     }
 
     fun upsertDownload(dl: ActiveDownload) {
+        // preserva a uri original (magnet/hoster) entre posts de progresso
+        val prev = _downloads.value.firstOrNull { it.id == dl.id }
+        val merged = if (dl.uri == null && prev?.uri != null) dl.copy(uri = prev.uri) else dl
         val updated = _downloads.value
-            .filter { it.id != dl.id }
+            .filter { it.id != merged.id }
             .sortedByDescending { it.progress < 1f } // ativos primeiro
-            .let { listOf(dl) + it.filter { x -> x.id != dl.id } }
+            .let { listOf(merged) + it.filter { x -> x.id != merged.id } }
         commit("downloads.json", updated.take(30), _downloads)
     }
 

@@ -18,6 +18,7 @@ import org.libtorrent4j.alerts.AddTorrentAlert
 import org.libtorrent4j.alerts.Alert
 import org.libtorrent4j.alerts.AlertType
 import org.libtorrent4j.alerts.TorrentErrorAlert
+import org.libtorrent4j.swig.remove_flags_t
 import org.libtorrent4j.swig.torrent_flags_t
 import java.io.File
 
@@ -30,6 +31,8 @@ object TorrentEngine {
     private var appContext: Context? = null
 
     private val pollers = mutableMapOf<String, Job>()
+    private val hashes = mutableMapOf<String, Sha1Hash>()
+    @Volatile private var pausedIds = setOf<String>()
     private var pendingId: String? = null
     private var pendingTitle: String? = null
 
@@ -58,7 +61,36 @@ object TorrentEngine {
 
     fun cancel(id: String) {
         pollers.remove(id)?.cancel()
+        pausedIds = pausedIds - id
         pendingId = pendingId.takeIf { it != id }
+        val hash = hashes.remove(id)
+        if (hash != null) {
+            runCatching {
+                manager?.find(hash)?.let { handle ->
+                    // remove_flags_t.from_int(1) = delete_files
+                    manager?.remove(handle, remove_flags_t.from_int(1))
+                }
+            }
+        }
+    }
+
+    fun pause(id: String) {
+        pausedIds = pausedIds + id
+        val hash = hashes[id] ?: return
+        runCatching { manager?.find(hash)?.pause() }
+    }
+
+    fun resume(context: Context, id: String, title: String, magnet: String) {
+        pausedIds = pausedIds - id
+        val hash = hashes[id]
+        val handle = hash?.let { runCatching { manager?.find(it) }.getOrNull() }
+        if (handle != null && handle.isValid()) {
+            runCatching { handle.resume() }
+        } else {
+            // sessão perdida (app reiniciou): re-adiciona o magnet, os dados ficam no diretório
+            hashes.remove(id)
+            start(context, id, title, magnet)
+        }
     }
 
     private fun ensureSession(): SessionManager? {
@@ -82,6 +114,7 @@ object TorrentEngine {
                             if (id != null && title != null && hash != null) {
                                 pendingId = null
                                 pendingTitle = null
+                                hashes[id] = hash
                                 poll(id, title, hash)
                             }
                         }
@@ -121,6 +154,10 @@ object TorrentEngine {
                 val st = runCatching { handle.status() }.getOrNull()
                 if (st == null) {
                     delay(1500)
+                    continue
+                }
+                if (pausedIds.contains(id)) {
+                    delay(1000)
                     continue
                 }
                 val done = st.totalWantedDone()

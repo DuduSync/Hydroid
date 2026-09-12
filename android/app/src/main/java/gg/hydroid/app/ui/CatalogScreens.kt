@@ -230,6 +230,9 @@ fun GameDetailScreen(vm: CatalogViewModel) {
     var descExpanded by remember { mutableStateOf(false) }
     var inLibrary by remember(game.id) { mutableStateOf(AppStore.isInLibrary(game.id)) }
     val rdKey by AppStore.rdApiKey.collectAsState()
+    val premiumizeKey by AppStore.premiumizeKey.collectAsState()
+    val alldebridKey by AppStore.alldebridKey.collectAsState()
+    val torboxKey by AppStore.torboxKey.collectAsState()
     var optionsFor by remember { mutableStateOf<DownloadSheet?>(null) }
 
     fun start(uri: String, method: DownloadMethod, title: String) {
@@ -424,6 +427,9 @@ fun GameDetailScreen(vm: CatalogViewModel) {
                 DownloadOptionsSheet(
                     sheet = sheet,
                     rdAvailable = rdKey.isNotBlank(),
+                    premiumizeAvailable = premiumizeKey.isNotBlank(),
+                    alldebridAvailable = alldebridKey.isNotBlank(),
+                    torboxAvailable = torboxKey.isNotBlank(),
                     onPick = { uri, method ->
                         optionsFor = null
                         startChecked(uri, method, sheet.title)
@@ -446,10 +452,17 @@ private data class DownloadSheet(
 private fun DownloadOptionsSheet(
     sheet: DownloadSheet,
     rdAvailable: Boolean,
+    premiumizeAvailable: Boolean,
+    alldebridAvailable: Boolean,
+    torboxAvailable: Boolean,
     onPick: (String, DownloadMethod) -> Unit
 ) {
     val hasMagnet = sheet.uris.any { it.startsWith("magnet:") }
     val hasHttp = sheet.uris.any { it.startsWith("http") }
+    // uri preferida para servicos debrid: magnet > http > primeira
+    val debridUri = sheet.uris.firstOrNull { it.startsWith("magnet:") }
+        ?: sheet.uris.firstOrNull { it.startsWith("http") }
+        ?: sheet.uris.firstOrNull()
     Column(
         Modifier
             .fillMaxWidth()
@@ -475,13 +488,37 @@ private fun DownloadOptionsSheet(
         }
         Spacer(Modifier.height(18.dp))
 
-        DownloadMethodRow(
-            icon = Icons.Filled.CloudDownload,
-            title = "Real-Debrid",
-            subtitle = if (rdAvailable) "Processa no cloud e baixa em alta velocidade"
-            else "Configure a chave em Ajustes para usar",
-            enabled = rdAvailable
-        ) { onPick(sheet.uris.first(), DownloadMethod.RD) }
+        if (rdAvailable && debridUri != null) {
+            DownloadMethodRow(
+                icon = Icons.Filled.CloudDownload,
+                title = "Real-Debrid",
+                subtitle = "Processa no cloud e baixa em alta velocidade"
+            ) { onPick(debridUri, DownloadMethod.RD) }
+        }
+        if (premiumizeAvailable && debridUri != null) {
+            DownloadMethodRow(
+                icon = Icons.Filled.CloudDownload,
+                title = "Premiumize",
+                subtitle = "Processa no cloud e baixa em alta velocidade",
+                beta = true
+            ) { onPick(debridUri, DownloadMethod.PREMIUMIZE) }
+        }
+        if (alldebridAvailable && debridUri != null) {
+            DownloadMethodRow(
+                icon = Icons.Filled.CloudDownload,
+                title = "AllDebrid",
+                subtitle = "Processa no cloud e baixa em alta velocidade",
+                beta = true
+            ) { onPick(debridUri, DownloadMethod.ALLDEBRID) }
+        }
+        if (torboxAvailable && debridUri != null) {
+            DownloadMethodRow(
+                icon = Icons.Filled.CloudDownload,
+                title = "TorBox",
+                subtitle = "Processa no cloud e baixa em alta velocidade",
+                beta = true
+            ) { onPick(debridUri, DownloadMethod.TORBOX) }
+        }
 
         if (hasMagnet) {
             DownloadMethodRow(
@@ -506,6 +543,7 @@ private fun DownloadMethodRow(
     title: String,
     subtitle: String,
     enabled: Boolean = true,
+    beta: Boolean = false,
     onClick: () -> Unit
 ) {
     Surface(
@@ -550,6 +588,9 @@ private fun DownloadMethodRow(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+            if (beta) {
+                BetaInfoButton()
             }
         }
     }

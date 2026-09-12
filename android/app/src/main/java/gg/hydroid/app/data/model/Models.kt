@@ -113,7 +113,8 @@ data class ActiveDownload(
     val totalBytes: Long = 0,
     val speedBps: Long = 0,
     val error: String? = null,
-    val savePath: String? = null
+    val savePath: String? = null,
+    val uri: String? = null
 )
 
 @Serializable

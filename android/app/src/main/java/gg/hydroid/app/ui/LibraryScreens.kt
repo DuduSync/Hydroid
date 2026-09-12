@@ -140,6 +140,9 @@ private data class MethodBadge(val label: String, val color: Color)
 private fun downloadMethodBadge(method: String): MethodBadge = when (method) {
     "direto" -> MethodBadge("Direto", MaterialTheme.colorScheme.secondary)
     "torrent" -> MethodBadge("Torrent", MaterialTheme.colorScheme.tertiary)
+    "premiumize" -> MethodBadge("Premiumize", MaterialTheme.colorScheme.tertiary)
+    "alldebrid" -> MethodBadge("AllDebrid", MaterialTheme.colorScheme.tertiary)
+    "torbox" -> MethodBadge("TorBox", MaterialTheme.colorScheme.tertiary)
     else -> MethodBadge("Real-Debrid", MaterialTheme.colorScheme.primary)
 }
 
@@ -248,6 +251,17 @@ private fun DownloadCard(dl: ActiveDownload) {
                     )
                 } else {
                     Spacer(Modifier.weight(1f))
+                }
+                when {
+                    dl.stage == "pausado" -> TextButton(onClick = { DownloadEngine.resume(dl.id) }) {
+                        Text("Continuar")
+                    }
+                    dl.stage == "erro" && dl.uri != null -> TextButton(onClick = { DownloadEngine.resume(dl.id) }) {
+                        Text("Tentar de novo")
+                    }
+                    dl.stage == "baixando" || dl.stage == "resolvendo" ||
+                        dl.stage == "conectando ao swarm" || dl.stage.startsWith("cloud") ->
+                        TextButton(onClick = { DownloadEngine.pause(dl.id) }) { Text("Pausar") }
                 }
                 TextButton(onClick = { DownloadEngine.cancel(dl.id) }) {
                     Text(if (dl.stage == "concluido") "Limpar" else "Cancelar")

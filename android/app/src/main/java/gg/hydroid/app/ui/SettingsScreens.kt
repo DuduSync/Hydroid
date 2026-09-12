@@ -538,6 +538,7 @@ private fun NavRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     subtitle: String,
+    beta: Boolean = false,
     onClick: () -> Unit
 ) {
     Card(
@@ -564,6 +565,9 @@ private fun NavRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1, overflow = TextOverflow.Ellipsis
                 )
+            }
+            if (beta) {
+                BetaInfoButton()
             }
             Icon(
                 Icons.AutoMirrored.Filled.KeyboardArrowRight, null,
@@ -646,6 +650,7 @@ private fun SwitchRow(
     title: String,
     subtitle: String,
     checked: Boolean,
+    enabled: Boolean = true,
     onChange: (Boolean) -> Unit
 ) {
     Row(
@@ -653,14 +658,20 @@ private fun SwitchRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+            Text(
+                title,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = if (enabled) MaterialTheme.colorScheme.onSurface
+                else MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Text(
                 subtitle,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Switch(checked = checked, onCheckedChange = onChange)
+        Switch(checked = checked, onCheckedChange = onChange, enabled = enabled)
     }
 }
 
@@ -700,15 +711,18 @@ private fun IntegracoesPage(onBack: () -> Unit) {
         ) { service = DebridService.REAL_DEBRID }
         NavRow(
             Icons.Filled.Cloud, "Premiumize",
-            if (pmKey.isBlank()) "Não configurado" else "Conectado"
+            if (pmKey.isBlank()) "Não configurado" else "Conectado",
+            beta = true
         ) { service = DebridService.PREMIUMIZE }
         NavRow(
             Icons.Filled.Cloud, "AllDebrid",
-            if (adKey.isBlank()) "Não configurado" else "Conectado"
+            if (adKey.isBlank()) "Não configurado" else "Conectado",
+            beta = true
         ) { service = DebridService.ALLDEBRID }
         NavRow(
             Icons.Filled.Cloud, "TorBox",
-            if (tbKey.isBlank()) "Não configurado" else "Conectado"
+            if (tbKey.isBlank()) "Não configurado" else "Conectado",
+            beta = true
         ) { service = DebridService.TORBOX }
     }
 }
@@ -749,6 +763,17 @@ private fun DebridServicePage(service: DebridService, onBack: () -> Unit) {
             title = service.label,
             subtitle = service.subtitle
         ) {
+            if (service != DebridService.REAL_DEBRID) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    BetaInfoButton()
+                    Text(
+                        "Função em beta, toque no ícone para saber mais",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+            }
             OutlinedTextField(
                 value = keyInput,
                 onValueChange = { keyInput = it },
@@ -1028,8 +1053,10 @@ private fun AppConfigPage(onBack: () -> Unit) {
             ) { AppStore.setAutoExtract(it) }
             SwitchRow(
                 "Apagar arquivo após extrair",
-                "Remove o .zip/.rar para liberar o espaço",
-                deleteArchive
+                if (autoExtract) "Remove o .zip/.rar para liberar o espaço"
+                else "Ative a extração automática para usar",
+                deleteArchive,
+                enabled = autoExtract
             ) { AppStore.setDeleteArchive(it) }
         }
     }

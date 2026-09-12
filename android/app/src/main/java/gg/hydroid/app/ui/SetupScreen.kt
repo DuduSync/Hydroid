@@ -20,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BatteryAlert
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.SportsEsports
@@ -37,6 +38,8 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import gg.hydroid.app.R
+import gg.hydroid.app.data.store.AppStore
+import gg.hydroid.app.data.store.StorageUtil
 
 private fun hasNotifPermission(context: Context): Boolean =
     if (Build.VERSION.SDK_INT >= 33) {
@@ -99,7 +102,7 @@ fun SetupScreen(onDone: () -> Unit) {
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            "Antes de começar, três ajustes importantes para os downloads funcionarem bem:",
+            "Antes de começar, quatro ajustes importantes para os downloads funcionarem bem:",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 8.dp)
@@ -161,9 +164,33 @@ fun SetupScreen(onDone: () -> Unit) {
             }
         )
 
+        // passo 4: pasta de downloads escolhida pelo usuario
+        val downloadDir by AppStore.downloadDir.collectAsState()
+        val folderPicker = rememberLauncherForActivityResult(
+            ActivityResultContracts.OpenDocumentTree()
+        ) { uri ->
+            if (uri != null) {
+                StorageUtil.persistPermission(context, uri)
+                StorageUtil.resolveTreePath(uri)?.let { AppStore.setDownloadDir(it) }
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        SetupStep(
+            icon = Icons.Filled.Download,
+            title = "Escolha onde baixar",
+            subtitle = if (fileAccess) "Os jogos serão salvos na pasta que você escolher"
+            else "Conclua o acesso a arquivos primeiro",
+            done = downloadDir.isNotBlank(),
+            actionLabel = "Escolher pasta",
+            onAction = {
+                if (fileAccess) folderPicker.launch(null)
+            }
+        )
+
         Spacer(Modifier.height(36.dp))
         Button(
             onClick = onDone,
+            enabled = fileAccess && downloadDir.isNotBlank(),
             modifier = Modifier.fillMaxWidth().height(52.dp),
             shape = RoundedCornerShape(16.dp)
         ) {
