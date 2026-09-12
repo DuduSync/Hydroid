@@ -27,7 +27,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -70,6 +73,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -153,6 +157,19 @@ private fun HydroidRoot() {
     val theme by AppStore.theme.collectAsState()
     val glass = theme == "glass"
     val hazeState = remember { HazeState() }
+
+    // paginas deslizaveis (arrastar pro lado troca de aba; a pilula acompanha)
+    val pagerState = rememberPagerState(initialPage = selected) { tabs.size }
+    LaunchedEffect(selected) {
+        if (pagerState.currentPage != selected && !pagerState.isScrollInProgress) {
+            pagerState.animateScrollToPage(selected)
+        }
+    }
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.currentPage }.collect { page ->
+            if (page != selected) selected = page
+        }
+    }
     var lastBackMs by remember { mutableLongStateOf(0L) }
     var originTab by remember { mutableIntStateOf(-1) }
 
@@ -209,23 +226,18 @@ private fun HydroidRoot() {
                 }
             }
         ) { innerPadding ->
-            AnimatedContent(
-                targetState = selected,
-                transitionSpec = {
-                    val forward = targetState > initialState
-                    (slideInHorizontally(tween(280)) { if (forward) it / 4 else -it / 4 } +
-                        fadeIn(tween(220))) togetherWith
-                        (slideOutHorizontally(tween(220)) { if (forward) -it / 4 else it / 4 } +
-                            fadeOut(tween(160)))
-                },
-                label = "tabs"
-            ) { tab ->
+            HorizontalPager(
+                state = pagerState,
+                userScrollEnabled = !detailOpen,
+                modifier = Modifier.fillMaxSize(),
+                key = { it }
+            ) { page ->
                 Box(
                     Modifier
                         .fillMaxSize()
                         .padding(innerPadding)
                 ) {
-                    when (tab) {
+                    when (page) {
                         0 -> LibraryScreen(onOpenGame = { game ->
                             originTab = 0
                             catalogVm.openFromLibrary(game)
@@ -340,7 +352,10 @@ private fun FloatingDock(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight()
-                                .clickable { onSelect(index) },
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) { onSelect(index) },
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {

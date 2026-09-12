@@ -15,8 +15,8 @@ android {
         applicationId = "gg.hydroid.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 9
-        versionName = "0.9"
+        versionCode = 10
+        versionName = "0.9.1"
     }
 
     signingConfigs {
