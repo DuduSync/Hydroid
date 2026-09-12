@@ -25,15 +25,21 @@ APK universal assinado (arm64 + x86_64):
 
 - Busca de jogos na Steam com capas e detalhes (descrição em PT-BR)
 - Página do jogo imersiva: arte em tamanho cheio, sem barras, botão de voltar minimalista
+- Conta Hydra: login, sincronização da biblioteca e das fontes
 - Fontes de download registradas via **Hydra Cloud** — o servidor do Hydra resolve as fontes atrás de Cloudflare automaticamente
 - Repacks por jogo com **método de download explícito**:
   - **Real-Debrid** — torrents e hosters processados no cloud
-  - **Torrent** — engine nativa (libtorrent4j) direto no aparelho, com peers e velocidade
+  - **Premiumize, AllDebrid e TorBox** — alternativas em beta (com aviso no app)
+  - **Torrent** — engine nativa (libtorrent4j) direto no aparelho, com peers, seeds e trackers públicos automáticos
   - **Direto** — download HTTP direto, sem precisar de conta (quando a fonte oferece link de arquivo real)
-- Downloads com progresso, velocidade e badge do método utilizado
+- Downloads com progresso, velocidade, ETA e badge do método utilizado
+- **Pausar e continuar**: retoma de onde parou, mesmo depois de fechar o app
+- **Fila de downloads** com limite de simultâneos (1, 2, 3 ou sem limite)
+- **Só baixar no Wi-Fi** e **limite de velocidade** por download
 - Notificação de progresso em primeiro plano (foreground service)
-- Pós-download: **extração automática** de `.zip`/`.rar` e pasta de destino configurável
-- Setup guiado em 3 passos (notificações, otimização de bateria e acesso a arquivos)
+- Pós-download: **extração automática** de `.zip`/`.rar`, **abrir pasta**, extrair manualmente e apagar (removendo só o que aquele download criou)
+- Setup guiado em 4 passos (notificações, otimização de bateria, acesso a arquivos e pasta de downloads)
+- **Atualização automática**: confere o release mais recente e instala o APK com um toque
 - Logs internos com exportação para diagnóstico
 - Biblioteca local com capas
 - Sair com dois toques no voltar (com aviso na tela)
@@ -41,34 +47,12 @@ APK universal assinado (arm64 + x86_64):
 
 ## Como usar
 
-1. Na primeira abertura, conclua o setup (notificações, bateria e acesso a arquivos)
+1. Na primeira abertura, conclua o setup (notificações, bateria, acesso a arquivos e pasta de downloads)
 2. Em **Ajustes → Integrações**, configure sua chave da API do Real-Debrid
 3. Em **Ajustes → Fontes de download**, adicione fontes de download (URLs de catálogo `.json`, formato Hydra)
 4. Em **Catálogo**, busque um jogo e abra a página dele
 5. Escolha um repack e toque em **Baixar** — depois escolha o método (Real-Debrid, Torrent ou Direto)
 6. Acompanhe em **Downloads** — por padrão os jogos vão para `/storage/emulated/0/Download/HYDROID` (configurável em **Ajustes → Configurações do app**)
-
-### Fontes de download
-
-O formato é o mesmo do Hydra:
-
-```json
-{
-  "name": "Minha fonte",
-  "downloads": [
-    {
-      "title": "Nome do jogo [Pre-Instalado]",
-      "fileSize": "1.5 GB",
-      "uris": ["magnet:?xt=urn:btih:..."],
-      "uploadDate": "2026-01-01T00:00:00.000Z"
-    }
-  ]
-}
-```
-
-Documentação oficial: [docs.hydralauncher.gg/download-sources](https://docs.hydralauncher.gg/download-sources)
-
-Fontes da comunidade: [library.hydra.wiki](https://library.hydra.wiki/). Fontes atrás de Cloudflare são registradas automaticamente pelo servidor do Hydra ao adicionar a URL.
 
 ## Real-Debrid
 
@@ -83,18 +67,6 @@ Fontes da comunidade: [library.hydra.wiki](https://library.hydra.wiki/). Fontes 
 </p>
 
 O Real-Debrid é o motor recomendado de downloads: ele processa torrents e hosters no cloud e devolve um link direto de alta velocidade para o aparelho. Pegue sua chave em [real-debrid.com/apitoken](https://real-debrid.com/apitoken) e cole em **Ajustes → Integrações**.
-
-## Compilando
-
-Requisitos: JDK 17+ e Android SDK (API 34). O Gradle wrapper está incluído.
-
-```bash
-cd android
-echo "sdk.dir=/caminho/para/android-sdk" > local.properties   # ou defina ANDROID_HOME
-./gradlew assembleDebug
-```
-
-O APK sai em `android/app/build/outputs/apk/debug/app-debug.apk`.
 
 ## Arquitetura
 
