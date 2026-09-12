@@ -70,6 +70,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -99,6 +100,7 @@ import gg.hydroid.app.ui.LibraryScreen
 import gg.hydroid.app.ui.SettingsScreen
 import gg.hydroid.app.ui.SetupScreen
 import gg.hydroid.app.ui.theme.HydroidTheme
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -165,6 +167,8 @@ private fun HydroidRoot() {
     val selected = pagerState.currentPage
     val detailOpen = catalogVm.selectedGame != null
     var lastBackMs by remember { mutableLongStateOf(0L) }
+    // clique na dock: cancela a animacao anterior e anima ate a aba (ultimo clique vence)
+    var pagerJob by remember { mutableStateOf<Job?>(null) }
     var originTab by remember { mutableIntStateOf(-1) }
 
     // abre o jogo pedido por atalho da tela inicial
@@ -254,7 +258,10 @@ private fun HydroidRoot() {
         ) {
             FloatingDock(
                 selected = selected,
-                onSelect = { index -> pagerState.requestScrollToPage(index) },
+                onSelect = { index ->
+                    pagerJob?.cancel()
+                    pagerJob = scope.launch { pagerState.animateScrollToPage(index) }
+                },
                 hazeState = hazeState,
                 glass = glass,
                 modifier = Modifier
