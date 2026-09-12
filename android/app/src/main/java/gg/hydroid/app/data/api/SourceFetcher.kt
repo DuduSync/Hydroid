@@ -23,13 +23,24 @@ data class SourceRepack(
 // isso no servidor deles; a versao mobile usa fontes raw/mirrors por enquanto.
 object SourceFetcher {
 
+    // cache em memoria (TTL 10 min): evita baixar o mesmo JSON de fonte a cada jogo checado
+    private const val TTL_MS = 10 * 60 * 1000L
+    private val cache = mutableMapOf<String, Pair<Long, SourceCatalog>>()
+
     suspend fun fetch(url: String, appContext: android.content.Context): SourceCatalog? {
+        synchronized(cache) {
+            cache[url]?.let { (at, cat) ->
+                if (System.currentTimeMillis() - at < TTL_MS) return cat
+            }
+        }
         val raw = runCatching { httpGetJson(url) }
             .onFailure { android.util.Log.e("HydroidSource", "fetch $url: ${it.message}") }
             .getOrNull() ?: return null
-        return runCatching { Json.decodeFromString<SourceCatalog>(raw) }
+        val catalog = runCatching { Json.decodeFromString<SourceCatalog>(raw) }
             .onFailure { android.util.Log.e("HydroidSource", "parse $url: ${it.message}") }
             .onSuccess { android.util.Log.i("HydroidSource", "${it.name}: ${it.downloads.size} repacks") }
-            .getOrNull()
+            .getOrNull() ?: return null
+        synchronized(cache) { cache[url] = System.currentTimeMillis() to catalog }
+        return catalog
     }
 }

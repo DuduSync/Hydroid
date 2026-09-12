@@ -77,6 +77,26 @@ object UpdateManager {
         if (_state.value !is State.Downloading) _state.value = State.Idle
     }
 
+    // o APK de uma atualizacao ja instalada nao serve mais: apaga no boot
+    fun cleanupOldApks(context: Context) {
+        if (_state.value is State.Downloading || _state.value is State.Ready) return
+        scope.launch {
+            runCatching {
+                val dir = File(context.cacheDir, "update")
+                val files = dir.listFiles().orEmpty()
+                var freed = 0L
+                files.forEach { f ->
+                    val size = f.length()
+                    freed += size
+                    if (f.delete()) AppLog.i("Update", "apk antigo removido: ${f.name} ($size bytes)")
+                }
+                if (files.isNotEmpty()) {
+                    AppLog.i("Update", "limpeza de update: ${files.size} arquivo(s), ${freed / 1048576} MB liberados")
+                }
+            }.onFailure { AppLog.w("Update", "limpeza de update falhou: ${it.message}") }
+        }
+    }
+
     fun downloadAndInstall(context: Context) {
         val s = _state.value
         if (s !is State.Available && s !is State.Failed) return

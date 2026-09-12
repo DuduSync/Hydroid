@@ -18,6 +18,30 @@ data class SteamSearchItem(
 )
 
 @Serializable
+data class SteamFeaturedResponse(
+    val top_sellers: SteamFeaturedCategory? = null,
+    val new_releases: SteamFeaturedCategory? = null,
+    val specials: SteamFeaturedCategory? = null,
+    val coming_soon: SteamFeaturedCategory? = null
+)
+
+@Serializable
+data class SteamFeaturedCategory(val items: List<SteamFeaturedItem> = emptyList())
+
+@Serializable
+data class SteamFeaturedItem(
+    val id: Long = 0,
+    val name: String = "",
+    val header_image: String? = null,
+    val large_capsule_image: String? = null,
+    val small_capsule_image: String? = null,
+    val final_price: Long = 0,
+    val original_price: Long? = null,
+    val discount_percent: Int = 0,
+    val currency: String? = null
+)
+
+@Serializable
 data class SteamAppDetailsResponse(
     @kotlinx.serialization.json.JsonNames("data") val data: Map<String, SteamAppDetails> = emptyMap()
 )

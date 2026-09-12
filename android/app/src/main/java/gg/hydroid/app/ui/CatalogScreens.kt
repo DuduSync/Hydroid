@@ -19,6 +19,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
@@ -29,10 +30,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material3.*
@@ -60,9 +63,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
+import gg.hydroid.app.data.api.FeaturedCache
 import gg.hydroid.app.data.api.HydraCloudApi
 import gg.hydroid.app.data.api.ProtonDbApi
-import gg.hydroid.app.data.api.SourceFetcher
+import gg.hydroid.app.data.api.RepackFinder
 import gg.hydroid.app.data.api.SteamApi
 import gg.hydroid.app.data.model.*
 import gg.hydroid.app.data.store.AppStore
@@ -87,6 +91,9 @@ class CatalogViewModel : ViewModel() {
     var details by mutableStateOf<SteamAppDetails?>(null)
     var detailsLoading by mutableStateOf(false)
         private set
+
+    // home de descoberta: dados no FeaturedCache (pre-carregado no boot)
+    var featuredTab by mutableStateOf("top_sellers")
 
     fun search() {
         val q = query.trim()
@@ -146,16 +153,19 @@ fun CatalogScreen(vm: CatalogViewModel = viewModel()) {
 private fun CatalogSearchScreen(vm: CatalogViewModel) {
     val focus = LocalFocusManager.current
     val glassTheme = AppStore.theme.collectAsState().value == "glass"
+    val featured by FeaturedCache.data.collectAsState()
+    LaunchedEffect(Unit) { FeaturedCache.ensureLoaded() }
     Box(Modifier.fillMaxSize()) {
         when {
             vm.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
-            !vm.searched -> EmptyState(
+            !vm.searched && featured.isEmpty() -> EmptyState(
                 icon = Icons.Filled.Search,
                 title = tr("Explore o catálogo"),
                 subtitle = tr("Busque qualquer jogo da Steam para ver opções de download")
             )
+            !vm.searched -> FeaturedHome(vm, featured)
             vm.results.isEmpty() -> EmptyState(
                 icon = Icons.Filled.Search,
                 title = tr("Nada encontrado"),
@@ -201,6 +211,139 @@ private fun CatalogSearchScreen(vm: CatalogViewModel) {
                 singleLine = true,
                 shape = RoundedCornerShape(18.dp)
             )
+        }
+    }
+}
+
+// ---------- home de descoberta ----------
+
+@Composable
+private fun FeaturedHome(vm: CatalogViewModel, featured: Map<String, List<SteamFeaturedItem>>) {
+    val tabs = listOf(
+        "top_sellers" to tr("Populares"),
+        "new_releases" to tr("Lançamentos"),
+        "specials" to tr("Em promoção"),
+        "coming_soon" to tr("Em breve")
+    )
+    val current = vm.featuredTab
+    val items = featured[current].orEmpty()
+    val counts by RepackFinder.counts.collectAsState()
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        modifier = Modifier
+            .fillMaxSize()
+            .topFadeMask(170.dp),
+        contentPadding = PaddingValues(start = 16.dp, top = 92.dp, end = 16.dp, bottom = 120.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                tabs.forEach { (key, label) ->
+                    item {
+                        FilterChip(
+                            selected = current == key,
+                            onClick = { vm.featuredTab = key },
+                            label = { Text(label) }
+                        )
+                    }
+                }
+                item {
+                    FilterChip(
+                        selected = false,
+                        onClick = {
+                            featured.values.flatten().randomOrNull()
+                                ?.let { vm.openGame(SteamSearchItem(name = it.name, id = it.id)) }
+                        },
+                        label = { Text(tr("Surpreenda-me")) },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Filled.AutoAwesome, null,
+                                modifier = Modifier.size(FilterChipDefaults.IconSize)
+                            )
+                        }
+                    )
+                }
+            }
+        }
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    Icons.Filled.LocalFireDepartment, null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Text(
+                    tabs.firstOrNull { it.first == current }?.second.orEmpty(),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+        items(items, key = { it.id }) { item ->
+            LaunchedEffect(item.id) { RepackFinder.check(item.id, item.name) }
+            FeaturedGameCard(item, counts[item.id]) {
+                vm.openGame(SteamSearchItem(name = item.name, id = item.id))
+            }
+        }
+    }
+}
+
+@Composable
+private fun FeaturedGameCard(item: SteamFeaturedItem, available: Int?, onClick: () -> Unit) {
+    var loaded by remember { mutableStateOf(false) }
+    Card(
+        onClick = onClick,
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        )
+    ) {
+        Column {
+            Box(Modifier.fillMaxWidth().aspectRatio(616f / 353f)) {
+                if (!loaded) {
+                    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceContainerHigh))
+                }
+                AsyncImage(
+                    model = item.large_capsule_image ?: item.header_image ?: steamHeader(item.id),
+                    contentDescription = item.name,
+                    contentScale = ContentScale.Crop,
+                    onSuccess = { loaded = true },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+            Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        Icons.Filled.SportsEsports, null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Text(
+                        item.name,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                if (available != null) {
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        if (available > 0) tf("%d downloads disponíveis", available)
+                        else tr("Sem downloads disponíveis"),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (available > 0) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
     }
 }
@@ -284,6 +427,14 @@ fun GameDetailScreen(vm: CatalogViewModel) {
     val torboxKey by AppStore.torboxKey.collectAsState()
     var optionsFor by remember { mutableStateOf<DownloadSheet?>(null) }
     var sourcesOpen by remember { mutableStateOf(false) }
+
+    // downloads disponiveis (mesma contagem dos cards da home)
+    val allSources by AppStore.sources.collectAsState()
+    var repacks by remember(game.id) { mutableStateOf<List<Pair<GameRepack, String>>?>(null) }
+    LaunchedEffect(game.id, details?.name, allSources) {
+        if (allSources.isEmpty()) return@LaunchedEffect
+        repacks = RepackFinder.find(details?.name ?: game.name, game.id)
+    }
 
     // dados extras da pagina do jogo (HLTB e ProtonDB)
     var hltb by remember(game.id) { mutableStateOf<List<HltbEntry>?>(null) }
@@ -431,6 +582,17 @@ fun GameDetailScreen(vm: CatalogViewModel) {
 
             // Botao unico de download: abre o popup com todas as fontes
             Spacer(Modifier.height(16.dp))
+            repacks?.let { list ->
+                Text(
+                    if (list.isEmpty()) tr("Sem downloads disponíveis")
+                    else tf("%d downloads disponíveis", list.size),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (list.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant
+                    else MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp)
+                )
+                Spacer(Modifier.height(6.dp))
+            }
             Button(
                 onClick = { sourcesOpen = true },
                 modifier = Modifier
@@ -682,8 +844,9 @@ fun GameDetailScreen(vm: CatalogViewModel) {
                     )
                     Spacer(Modifier.height(8.dp))
                     SourceRepackList(
-                        gameName = details?.name ?: game.name,
-                        appId = game.id
+                        repacks = repacks.orEmpty(),
+                        loading = repacks == null && allSources.isNotEmpty(),
+                        noSources = allSources.isEmpty()
                     ) { repack, sourceName ->
                         sourcesOpen = false
                         optionsFor = DownloadSheet(
@@ -895,57 +1058,15 @@ private fun ManualDownloadCard(
     }
 }
 
-private fun normalizeTitle(t: String) =
-    t.lowercase().replace(Regex("[^a-z0-9]"), "").trim()
-
 @Composable
 private fun SourceRepackList(
-    gameName: String,
-    appId: Long,
+    repacks: List<Pair<GameRepack, String>>,
+    loading: Boolean,
+    noSources: Boolean,
     onShowOptions: (GameRepack, String) -> Unit
 ) {
-    val sources by AppStore.sources.collectAsState()
-    val scope = rememberCoroutineScope()
-    var repacks by remember { mutableStateOf<List<Pair<GameRepack, String>>>(emptyList()) }
-    var loading by remember { mutableStateOf(false) }
-
-    LaunchedEffect(gameName) {
-        if (sources.isEmpty() || gameName.isBlank()) return@LaunchedEffect
-        loading = true
-        scope.launch {
-            val hydraIds = sources.filter { !it.id.startsWith("local-") }.map { it.id }
-            val localSources = sources.filter { it.id.startsWith("local-") }
-            val found = mutableListOf<Pair<GameRepack, String>>()
-
-            if (hydraIds.isNotEmpty()) {
-                HydraCloudApi.repacks("steam", appId.toString(), hydraIds)
-                    .forEach { found += it to it.downloadSourceName }
-            }
-            val target = normalizeTitle(gameName)
-            for (source in localSources.take(3)) {
-                runCatching {
-                    val catalog = SourceFetcher.fetch(source.url, AppStore.appContext)
-                    catalog?.downloads?.forEach { repack ->
-                        val rp = normalizeTitle(repack.title)
-                        if (rp.contains(target) || target.contains(rp.take(20))) {
-                            found += GameRepack(
-                                id = "local-${repack.title.hashCode()}",
-                                title = repack.title,
-                                fileSize = repack.fileSize,
-                                uris = repack.uris,
-                                uploadDate = repack.uploadDate
-                            ) to source.name
-                        }
-                    }
-                }
-            }
-            repacks = found.distinctBy { it.first.id + it.second }
-            loading = false
-        }
-    }
-
     when {
-        sources.isEmpty() -> Box(Modifier.fillMaxWidth().padding(20.dp)) {
+        noSources -> Box(Modifier.fillMaxWidth().padding(20.dp)) {
             Text(
                 tr("Nenhuma fonte configurada. Adicione em Ajustes para ver opções."),
                 style = MaterialTheme.typography.bodyMedium,

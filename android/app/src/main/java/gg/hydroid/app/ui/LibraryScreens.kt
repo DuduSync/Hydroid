@@ -81,6 +81,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import gg.hydroid.app.data.api.HydraCloudApi
 import gg.hydroid.app.data.api.RealDebridApi
+import gg.hydroid.app.data.api.RepackFinder
 import gg.hydroid.app.data.model.ActiveDownload
 import gg.hydroid.app.data.model.DownloadSource
 import gg.hydroid.app.data.model.LibraryGame
@@ -191,6 +192,7 @@ fun LibraryScreen(onOpenGame: (LibraryGame) -> Unit = {}) {
     var collectionsFor by remember { mutableStateOf<LibraryGame?>(null) }
     var manageOpen by remember { mutableStateOf(false) }
     var sortOpen by remember { mutableStateOf(false) }
+    val downloads by RepackFinder.counts.collectAsState()
 
     if (games.isEmpty()) {
         Column(
@@ -252,8 +254,10 @@ fun LibraryScreen(onOpenGame: (LibraryGame) -> Unit = {}) {
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(shown, key = { it.appId }) { game: LibraryGame ->
+                    LaunchedEffect(game.appId) { RepackFinder.check(game.appId, game.name) }
                     LibraryCard(
                         game = game,
+                        downloads = downloads[game.appId],
                         modifier = Modifier.animateItem(),
                         onClick = { onOpenGame(game) },
                         onLongClick = { actionsFor = game },
@@ -374,6 +378,7 @@ fun LibraryScreen(onOpenGame: (LibraryGame) -> Unit = {}) {
 @Composable
 private fun LibraryCard(
     game: LibraryGame,
+    downloads: Int?,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
@@ -420,6 +425,16 @@ private fun LibraryCard(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(12.dp, 8.dp, 12.dp, 12.dp)
             )
+            if (downloads != null) {
+                Text(
+                    if (downloads > 0) tf("%d downloads disponíveis", downloads)
+                    else tr("Sem downloads disponíveis"),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (downloads > 0) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 10.dp)
+                )
+            }
         }
     }
 }

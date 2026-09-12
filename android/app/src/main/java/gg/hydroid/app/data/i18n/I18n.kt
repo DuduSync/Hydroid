@@ -36,6 +36,7 @@ fun localized(base: Context): Context {
 }
 
 private val EN = mapOf<String, String>(
+    "%d downloads disponíveis" to "%d downloads available",
     "1 usuário bloqueado" to "1 blocked user",
     "API do Hydra indisponível — salva localmente" to "Hydra API unavailable — saved locally",
     "Abrir ajustes" to "Open settings",
@@ -122,6 +123,8 @@ private val EN = mapOf<String, String>(
     "Email e senha" to "Email and password",
     "Email ou usuário" to "Email or username",
     "Entendi" to "Got it",
+    "Em breve" to "Coming soon",
+    "Em promoção" to "On sale",
     "Entrando..." to "Signing in...",
     "Entrar" to "Sign in",
     "Entrar na conta Hydra" to "Sign in to Hydra",
@@ -146,12 +149,13 @@ private val EN = mapOf<String, String>(
     "Função em beta" to "Beta feature",
     "Função em beta, toque no ícone para saber mais" to "Beta feature, tap the icon to learn more",
     "Histórico técnico para reportar problemas" to "Technical history for reporting issues",
-    "Hydroid 0.9.3 · fork de estudo do Hydra (MIT)" to "Hydroid 0.9.3 · study fork of Hydra (MIT)",
+    "Hydroid 0.9.4 · fork de estudo do Hydra (MIT)" to "Hydroid 0.9.4 · study fork of Hydra (MIT)",
     "Idioma" to "Language",
     "Idioma do aplicativo" to "App language",
     "Inicie um download pela página de um jogo" to "Start a download from a game page",
     "Instalar" to "Install",
     "Integrações" to "Integrations",
+    "Lançamentos" to "New releases",
     "Limite de velocidade" to "Speed limit",
     "Limpar" to "Clear",
     "Limpar cache" to "Clear cache",
@@ -204,6 +208,7 @@ private val EN = mapOf<String, String>(
     "Permitir" to "Allow",
     "Permitir notificações" to "Allow notifications",
     "Permitir que outros usuários me presenteiem" to "Allow other users to gift me",
+    "Populares" to "Popular",
     "Port Android não-oficial. Downloads acontecem via suas fontes configuradas " to
         "Unofficial Android port. Downloads happen through your configured sources ",
     "e Real-Debrid. Este app não hospeda nem distribui conteúdo." to
@@ -232,6 +237,7 @@ private val EN = mapOf<String, String>(
     "Sair da conta" to "Sign out",
     "Segurança" to "Security",
     "Sem assinatura" to "No subscription",
+    "Sem downloads disponíveis" to "No downloads available",
     "Sem isso o Android pode matar o download em segundo plano" to
         "Otherwise Android may kill the download in the background",
     "Sem limite" to "Unlimited",
@@ -250,6 +256,7 @@ private val EN = mapOf<String, String>(
     "Sincronize biblioteca e fontes" to "Sync library and sources",
     "Sua biblioteca está vazia" to "Your library is empty",
     "Sua conta Hydra" to "Your Hydra account",
+    "Surpreenda-me" to "Surprise me",
     "Só baixar no Wi-Fi" to "Only download on Wi-Fi",
     "Tentar de novo" to "Try again",
     "Tente outro nome" to "Try another name",

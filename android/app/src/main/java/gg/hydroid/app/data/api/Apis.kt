@@ -44,6 +44,21 @@ object SteamApi {
             .getOrDefault(emptyList())
     }
 
+    // jogos em alta (populares / lancamentos / promocoes / em breve) — home do catalogo
+    suspend fun featured(): Map<String, List<SteamFeaturedItem>> = withContext(Dispatchers.IO) {
+        val url = "https://store.steampowered.com/api/featuredcategories?cc=BR&l=portuguese"
+        val raw = runCatching { httpGetJson(url) }.getOrNull() ?: return@withContext emptyMap()
+        runCatching {
+            val r = JsonCfg.json.decodeFromString<SteamFeaturedResponse>(raw)
+            mapOf(
+                "top_sellers" to r.top_sellers?.items.orEmpty(),
+                "new_releases" to r.new_releases?.items.orEmpty(),
+                "specials" to r.specials?.items.orEmpty(),
+                "coming_soon" to r.coming_soon?.items.orEmpty()
+            ).mapValues { (_, v) -> v.filter { it.id > 0 && it.name.isNotBlank() }.take(20) }
+        }.getOrDefault(emptyMap())
+    }
+
     suspend fun appDetails(appId: Long): SteamAppDetails? = withContext(Dispatchers.IO) {
         val url = "https://store.steampowered.com/api/appdetails?appids=$appId&l=brazilian"
         val raw = runCatching { httpGetJson(url) }.getOrNull() ?: return@withContext null
