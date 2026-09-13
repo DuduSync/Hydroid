@@ -968,6 +968,7 @@ private fun DownloadOptionsSheet(
     onPick: (String, DownloadMethod) -> Unit,
     onOpenBrowser: () -> Unit
 ) {
+    val uriHandlerRef = LocalUriHandler.current
     val hasMagnet = sheet.uris.any { it.startsWith("magnet:") }
     val hasHttp = sheet.uris.any { it.startsWith("http") }
     // uri preferida para servicos debrid: magnet > http > primeira
@@ -1048,6 +1049,18 @@ private fun DownloadOptionsSheet(
                 subtitle = tr("Processa no cloud e baixa em alta velocidade"),
                 beta = true
             ) { onPick(debridUri, DownloadMethod.TORBOX) }
+        }
+
+        // sem RD configurado: oferece criar a conta (link de afiliado do projeto)
+        if (!rdAvailable) {
+            DownloadMethodRow(
+                icon = Icons.Filled.CloudDownload,
+                title = tr("Real-Debrid (recomendado)"),
+                subtitle = tr("Não tem conta? Crie a sua")
+            ) {
+                AppLog.i("Catalogo", "sheet: criar conta Real-Debrid (link do projeto)")
+                uriHandlerRef.openUri(REALDEBRID_REFERRAL_URL)
+            }
         }
 
         // ultimo recurso: sites com espera/login (o app captura o download quando comecar)

@@ -364,7 +364,11 @@ private val EN = mapOf<String, String>(
     "Entrar no Telegram" to "Join Telegram",
     "Notificações desativadas - o progresso não vai aparecer" to
         "Notifications are off - download progress won't show",
+    "Não tem conta? Crie a sua" to "No account? Create yours",
     "Novidades, suporte e reporte de bugs" to "News, support and bug reports",
+    "Real-Debrid (recomendado)" to "Real-Debrid (recommended)",
+    "Recomendado para o melhor funcionamento: baixa 1fichier, MEGA e repacks no cloud com velocidade total." to
+        "Recommended for the best experience: downloads 1fichier, MEGA and cloud repacks at full speed.",
     "Telegram oficial" to "Official Telegram",
     "Tema" to "Theme",
     "Visual do aplicativo" to "App appearance",
