@@ -47,7 +47,9 @@ import androidx.compose.material.icons.filled.Login
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
@@ -76,6 +78,7 @@ import gg.hydroid.app.data.api.RealDebridApi
 import gg.hydroid.app.data.log.AppLog
 import gg.hydroid.app.data.model.DownloadSource
 import gg.hydroid.app.data.model.HydraUser
+import gg.hydroid.app.data.api.SourceStore
 import gg.hydroid.app.data.i18n.tr
 import gg.hydroid.app.data.i18n.tf
 import gg.hydroid.app.data.update.Changelog
@@ -98,7 +101,7 @@ internal const val REALDEBRID_REFERRAL_URL = "https://real-debrid.com/?id=113841
 internal val REALDEBRID_GREEN = Color(0xFF25A55A)
 internal val DEBRID_RED = Color(0xFFE5484D)
 
-private enum class SettingsPage { CONTA, INTEGRACOES, FONTES, CONFIG, NOVIDADES, LOGS, CREDITOS }
+private enum class SettingsPage { CONTA, INTEGRACOES, FONTES, STORE, CONFIG, NOVIDADES, LOGS, CREDITOS }
 
 @Composable
 fun SettingsScreen() {
@@ -122,7 +125,8 @@ fun SettingsScreen() {
             }
             SettingsPage.CONTA -> AccountPage { page = null }
             SettingsPage.INTEGRACOES -> IntegracoesPage { page = null }
-            SettingsPage.FONTES -> FontesPage { page = null }
+            SettingsPage.FONTES -> FontesPage(onBack = { page = null }, onOpenStore = { page = SettingsPage.STORE })
+            SettingsPage.STORE -> SourceStorePage { page = null }
             SettingsPage.CONFIG -> AppConfigPage { page = null }
             SettingsPage.NOVIDADES -> NovidadesPage { page = null }
             SettingsPage.LOGS -> LogsPage { page = null }
@@ -157,6 +161,12 @@ private fun SettingsHome(onOpen: (SettingsPage) -> Unit) {
                 Icons.Filled.Link, tr("Fontes de download"),
                 tf("%d fonte(s) configurada(s)", sources.size)
             ) { onOpen(SettingsPage.FONTES) }
+        }
+        item {
+            NavRow(
+                Icons.Filled.Storefront, tr("Loja de fontes"),
+                tr("Adicione fontes da comunidade com um toque")
+            ) { onOpen(SettingsPage.STORE) }
         }
         item {
             NavRow(
@@ -988,7 +998,7 @@ private fun DebridServicePage(service: DebridService, onBack: () -> Unit) {
 // ---------- Fontes ----------
 
 @Composable
-private fun FontesPage(onBack: () -> Unit) {
+private fun FontesPage(onBack: () -> Unit, onOpenStore: () -> Unit) {
     val scope = rememberCoroutineScope()
     val sources by AppStore.sources.collectAsState()
     var sourceUrl by remember { mutableStateOf("") }
@@ -996,6 +1006,14 @@ private fun FontesPage(onBack: () -> Unit) {
     var sourceMsg by remember { mutableStateOf<String?>(null) }
 
     SettingsPageScaffold(tr("Fontes de download"), onBack) {
+        FilledTonalButton(
+            onClick = onOpenStore,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Filled.Storefront, null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(tr("Explorar loja de fontes"))
+        }
         SettingsSection(
             icon = Icons.Filled.Link,
             title = tr("Adicionar fonte"),
@@ -1539,6 +1557,163 @@ private fun LogsPage(onBack: () -> Unit) {
 }
 
 // ---------- Créditos ----------
+
+// ---------- Loja de fontes (Hydra Library) ----------
+
+private fun storeStatusColor(status: String): Color = when (status) {
+    "Trusted" -> REALDEBRID_GREEN
+    "Safe For Use" -> Color(0xFF3B82F6)
+    "Use At Your Own Risk" -> Color(0xFFF59E0B)
+    "NSFW" -> DEBRID_RED
+    "Classics" -> Color(0xFF8B5CF6)
+    "Software" -> Color(0xFF14B8A6)
+    else -> Color(0xFF6B7280)
+}
+
+@Composable
+private fun SourceStorePage(onBack: () -> Unit) {
+    val context = LocalContext.current
+    val installed by AppStore.sources.collectAsState()
+    var all by remember { mutableStateOf<List<SourceStore.StoreSource>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+    var reload by remember { mutableStateOf(0) }
+    var query by remember { mutableStateOf("") }
+
+    LaunchedEffect(reload) {
+        loading = true
+        all = SourceStore.cached(context)
+        SourceStore.fetch(context)?.let { all = it }
+        loading = false
+    }
+
+    val shown = if (query.isBlank()) all else all.filter {
+        it.title.orEmpty().contains(query, true) || it.description.orEmpty().contains(query, true)
+    }
+
+    SettingsPageScaffold(tr("Loja de fontes"), onBack) {
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it },
+            placeholder = { Text(tr("Buscar fonte...")) },
+            leadingIcon = { Icon(Icons.Filled.Search, null) },
+            singleLine = true,
+            shape = RoundedCornerShape(14.dp),
+            modifier = Modifier.fillMaxWidth()
+        )
+        when {
+            shown.isEmpty() && loading -> Box(
+                Modifier.fillMaxWidth().padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(tr("Sincronizando..."), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            shown.isEmpty() -> {
+                Text(
+                    tr("Não consegui sincronizar a loja de fontes."),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                TextButton(onClick = { reload++ }) { Text(tr("Tentar de novo")) }
+            }
+            else -> shown.forEach { src ->
+                val url = src.url ?: return@forEach
+                StoreSourceCard(
+                    src = src,
+                    added = installed.any { it.url == url },
+                    onAdd = {
+                        AppStore.addSource(
+                            gg.hydroid.app.data.model.DownloadSource(
+                                id = "store-${src.id}",
+                                name = src.title ?: url,
+                                url = url
+                            )
+                        )
+                        Toast.makeText(context, tr("Fonte adicionada"), Toast.LENGTH_SHORT).show()
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun StoreSourceCard(
+    src: SourceStore.StoreSource,
+    added: Boolean,
+    onAdd: () -> Unit
+) {
+    ElevatedCard(
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = glassAwareElevation()),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        ),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text(src.title ?: src.url.orEmpty(), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            val meta = buildList {
+                add(tf("%d jogos", src.gamesCount))
+                src.rating?.takeIf { (it.total ?: 0) > 0 }?.let { add("★ %.1f".format(it.avg ?: 0.0)) }
+                src.stats?.takeIf { (it.installs ?: 0) > 0 }?.let { add(tf("%d instalações", it.installs ?: 0)) }
+            }.joinToString("  ·  ")
+            Text(
+                meta,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            val desc = src.description
+            if (!desc.isNullOrBlank()) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    desc,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                src.status.orEmpty().forEach { st ->
+                    Box(
+                        Modifier
+                            .background(storeStatusColor(st).copy(alpha = 0.18f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            st,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = storeStatusColor(st),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+            val hosts = src.topDownloadOption.orEmpty().mapNotNull { it.name }.distinct().take(5)
+            if (hosts.isNotEmpty()) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    hosts.joinToString(", "),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Spacer(Modifier.height(10.dp))
+            if (added) {
+                Text(
+                    tr("Adicionada"),
+                    color = REALDEBRID_GREEN,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.labelMedium
+                )
+            } else {
+                Button(onClick = onAdd, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Filled.Add, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(tr("Adicionar"))
+                }
+            }
+        }
+    }
+}
 
 // ---------- Novidades (changelog sincronizada do GitHub) ----------
 
