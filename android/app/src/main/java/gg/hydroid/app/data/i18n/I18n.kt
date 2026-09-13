@@ -364,7 +364,12 @@ private val EN = mapOf<String, String>(
     "Entrar no Telegram" to "Join Telegram",
     "Notificações desativadas - o progresso não vai aparecer" to
         "Notifications are off - download progress won't show",
+    "Atual" to "Current",
+    "Novidades" to "What's new",
+    "Não consegui sincronizar a changelog." to "Couldn't sync the changelog.",
     "Não tem conta? Crie a sua" to "No account? Create yours",
+    "O que mudou em cada versão" to "What changed in each version",
+    "Sincronizando..." to "Syncing...",
     "Novidades, suporte e reporte de bugs" to "News, support and bug reports",
     "Real-Debrid (recomendado)" to "Real-Debrid (recommended)",
     "Recomendado" to "Recommended",

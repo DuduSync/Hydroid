@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.NewReleases
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.Chat
@@ -77,6 +78,7 @@ import gg.hydroid.app.data.model.DownloadSource
 import gg.hydroid.app.data.model.HydraUser
 import gg.hydroid.app.data.i18n.tr
 import gg.hydroid.app.data.i18n.tf
+import gg.hydroid.app.data.update.Changelog
 import gg.hydroid.app.data.store.AppStore
 import gg.hydroid.app.data.store.CacheCleaner
 import gg.hydroid.app.data.store.StorageUtil
@@ -96,7 +98,7 @@ internal const val REALDEBRID_REFERRAL_URL = "https://real-debrid.com/?id=113841
 internal val REALDEBRID_GREEN = Color(0xFF25A55A)
 internal val DEBRID_RED = Color(0xFFE5484D)
 
-private enum class SettingsPage { CONTA, INTEGRACOES, FONTES, CONFIG, LOGS, CREDITOS }
+private enum class SettingsPage { CONTA, INTEGRACOES, FONTES, CONFIG, NOVIDADES, LOGS, CREDITOS }
 
 @Composable
 fun SettingsScreen() {
@@ -122,6 +124,7 @@ fun SettingsScreen() {
             SettingsPage.INTEGRACOES -> IntegracoesPage { page = null }
             SettingsPage.FONTES -> FontesPage { page = null }
             SettingsPage.CONFIG -> AppConfigPage { page = null }
+            SettingsPage.NOVIDADES -> NovidadesPage { page = null }
             SettingsPage.LOGS -> LogsPage { page = null }
             SettingsPage.CREDITOS -> CreditosPage { page = null }
         }
@@ -160,6 +163,12 @@ private fun SettingsHome(onOpen: (SettingsPage) -> Unit) {
                 Icons.Filled.Settings, tr("Configurações do app"),
                 tr("Pasta de downloads, extração automática")
             ) { onOpen(SettingsPage.CONFIG) }
+        }
+        item {
+            NavRow(
+                Icons.Filled.NewReleases, tr("Novidades"),
+                tr("O que mudou em cada versão")
+            ) { onOpen(SettingsPage.NOVIDADES) }
         }
         item {
             NavRow(
@@ -1530,6 +1539,100 @@ private fun LogsPage(onBack: () -> Unit) {
 }
 
 // ---------- Créditos ----------
+
+// ---------- Novidades (changelog sincronizada do GitHub) ----------
+
+@Composable
+private fun NovidadesPage(onBack: () -> Unit) {
+    val context = LocalContext.current
+    val currentVersion = remember {
+        runCatching {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        }.getOrNull() ?: ""
+    }
+    var versions by remember { mutableStateOf<List<Changelog.Entry>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+    var reload by remember { mutableStateOf(0) }
+
+    LaunchedEffect(reload) {
+        loading = true
+        // abre na hora com a ultima copia salva (funciona offline) e depois sincroniza
+        Changelog.cached(context)?.let {
+            versions = it.versions
+            loading = false
+        }
+        Changelog.fetch(context)?.let { versions = it.versions }
+        loading = false
+    }
+
+    SettingsPageScaffold(tr("Novidades"), onBack) {
+        when {
+            versions.isEmpty() && loading -> Box(
+                Modifier.fillMaxWidth().padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(tr("Sincronizando..."), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            versions.isEmpty() -> {
+                Text(
+                    tr("Não consegui sincronizar a changelog."),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                TextButton(onClick = { reload++ }) { Text(tr("Tentar de novo")) }
+            }
+            else -> versions.forEach { v ->
+                ElevatedCard(
+                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = glassAwareElevation()),
+                    colors = CardDefaults.elevatedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "v${v.version}",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            if (v.version == currentVersion) {
+                                Spacer(Modifier.width(8.dp))
+                                Box(
+                                    Modifier
+                                        .background(REALDEBRID_GREEN, RoundedCornerShape(6.dp))
+                                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        tr("Atual"),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.weight(1f))
+                            if (v.date.isNotBlank()) {
+                                Text(
+                                    v.date,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        v.changes.forEach { line ->
+                            Row(Modifier.padding(vertical = 2.dp)) {
+                                Text("•", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                Spacer(Modifier.width(8.dp))
+                                Text(line, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun CreditosPage(onBack: () -> Unit) {
