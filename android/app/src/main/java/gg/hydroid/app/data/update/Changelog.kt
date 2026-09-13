@@ -25,6 +25,10 @@ object Changelog {
     @Serializable
     data class Data(val versions: List<Entry> = emptyList())
 
+    // cache-busting: o CDN do raw.githubusercontent segura a copia antiga por alguns
+    // minutos depois de um commit; um parametro muda a chave de cache e vem sempre fresco
+    private fun url(): String = "$URL?t=${System.currentTimeMillis() / 600_000}"
+
     private fun cacheFile(context: Context): File =
         File(context.filesDir, "hydroid/changelog.json").apply { parentFile?.mkdirs() }
 
@@ -38,7 +42,7 @@ object Changelog {
     // baixa do GitHub e atualiza o cache
     suspend fun fetch(context: Context): Data? = withContext(Dispatchers.IO) {
         runCatching {
-            val raw = httpGetJson(URL)
+            val raw = httpGetJson(url())
             val data = JsonCfg.json.decodeFromString<Data>(raw)
             runCatching { cacheFile(context).writeText(raw) }
             AppLog.i("Changelog", "sincronizada: ${data.versions.size} versoes")
