@@ -183,7 +183,7 @@ private val EN = mapOf<String, String>(
     "Função em beta" to "Beta feature",
     "Função em beta, toque no ícone para saber mais" to "Beta feature, tap the icon to learn more",
     "Histórico técnico para reportar problemas" to "Technical history for reporting issues",
-    "Hydroid 0.9.8 · fork de estudo do Hydra (MIT)" to "Hydroid 0.9.8 · study fork of Hydra (MIT)",
+    "Hydroid 0.9.9 · fork de estudo do Hydra (MIT)" to "Hydroid 0.9.9 · study fork of Hydra (MIT)",
     "Idioma" to "Language",
     "Idioma do aplicativo" to "App language",
     "Inicie um download pela página de um jogo" to "Start a download from a game page",

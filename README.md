@@ -20,7 +20,7 @@
 
 APK universal assinado (arm64 + x86_64):
 
-➡️ [**Hydroid v0.9.8 - Releases**](https://github.com/DuduSync/Hydroid/releases/latest)
+➡️ [**Hydroid v0.9.9 - Releases**](https://github.com/DuduSync/Hydroid/releases/latest)
 
 ## Funcionalidades
 
@@ -38,6 +38,7 @@ APK universal assinado (arm64 + x86_64):
 - **Conta Hydra**: login, sincronização da biblioteca e das fontes
 - Perfil da conta: visibilidade do perfil e dos souvenires, presentes na nuvem, bloqueados, segurança e assinatura do Hydra Cloud
 - Fontes de download registradas via **Hydra Cloud** (o servidor do Hydra resolve fontes atrás de Cloudflare automaticamente)
+- **Loja de fontes**: explore 70+ fontes da comunidade e adicione com um toque, com filtros por tag (Trusted, Safe For Use, Classics...) e a tag **Recomendada pro Hydroid** para fontes com jogos **pré-instalados** (extrai e joga, sem instalador)
 
 **Métodos de download**
 
@@ -70,6 +71,7 @@ APK universal assinado (arm64 + x86_64):
 
 **Sistema**
 
+- **Novidades**: changelog dentro do app, sincronizada direto do GitHub (com tag "Atual" na versão instalada)
 - **Atualização automática**: confere o release mais recente, instala o APK com um toque e apaga o APK antigo do cache
 - Setup guiado em 4 passos (notificações, otimização de bateria, acesso a arquivos e pasta de downloads)
 - Ajustes organizados em submenus (Integrações, Fontes, Configurações, Logs e Créditos), com validação das chaves debrid (cards **verdes quando conectados, vermelhos quando não configurados**) e link de convite do Real-Debrid

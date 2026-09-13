@@ -191,7 +191,7 @@ private fun SettingsHome(onOpen: (SettingsPage) -> Unit) {
         item {
             NavRow(
                 Icons.Filled.Favorite, tr("Créditos"),
-                tr("Hydroid 0.9.8 · fork de estudo do Hydra (MIT)")
+                tr("Hydroid 0.9.9 · fork de estudo do Hydra (MIT)")
             ) { onOpen(SettingsPage.CREDITOS) }
         }
     }
@@ -1872,7 +1872,7 @@ private fun CreditosPage(onBack: () -> Unit) {
     SettingsPageScaffold(tr("Créditos"), onBack) {
         SettingsSection(
             icon = Icons.Filled.Favorite,
-            title = tr("Hydroid 0.9.8"),
+            title = tr("Hydroid 0.9.9"),
             subtitle = tr("fork de estudo do Hydra Launcher (MIT)")
         ) {
             Text(
