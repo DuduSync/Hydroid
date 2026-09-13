@@ -773,7 +773,22 @@ private fun DownloadCard(dl: ActiveDownload, modifier: Modifier = Modifier) {
     var deleteSize by remember { mutableStateOf<String?>(null) }
 
     if (confirmDelete && path != null) {
-        val targets = dl.savedPaths.ifEmpty { listOf(path) }
+        // apaga SO o arquivo compactado quando ele convive com a pasta extraida (a pasta
+        // e o jogo; o zip e so sobra). Trava de seguranca: nada fora da pasta de downloads.
+        val allPaths = dl.savedPaths.ifEmpty { listOf(path) }
+        val archives = allPaths.filter { p ->
+            val l = p.lowercase()
+            l.endsWith(".zip") || l.endsWith(".rar") || l.endsWith(".7z")
+        }
+        val onlyArchive = archives.isNotEmpty() && archives.size < allPaths.size
+        val root = remember(path) {
+            runCatching { AppStore.targetDir(context).absolutePath }.getOrDefault("")
+        }
+        val targets = (if (onlyArchive) archives else allPaths).filter { p ->
+            val ok = root.isNotBlank() && File(p).absolutePath.startsWith("$root/")
+            if (!ok) AppLog.w("UI", "apagar: ignorando caminho fora da pasta de downloads ($p)")
+            ok
+        }
         LaunchedEffect(path, dl.savedPaths) {
             deleteSize = withContext(Dispatchers.IO) {
                 runCatching { formatBytes(targets.sumOf { folderSize(File(it)) }) }.getOrNull()
@@ -785,10 +800,16 @@ private fun DownloadCard(dl: ActiveDownload, modifier: Modifier = Modifier) {
             title = { Text("Apagar ${dl.title}?") },
             text = {
                 Text(
-                    tf(
-                        "Os arquivos baixados%s serão removidos do aparelho. Não dá para desfazer.",
-                        deleteSize?.let { " ($it)" } ?: ""
-                    )
+                    if (onlyArchive)
+                        tf(
+                            "O arquivo compactado%s será removido. A pasta extraída continua no aparelho.",
+                            deleteSize?.let { " ($it)" } ?: ""
+                        )
+                    else
+                        tf(
+                            "Os arquivos baixados%s serão removidos do aparelho. Não dá para desfazer.",
+                            deleteSize?.let { " ($it)" } ?: ""
+                        )
                 )
             },
             confirmButton = {

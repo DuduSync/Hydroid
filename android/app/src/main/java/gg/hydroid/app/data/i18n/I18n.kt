@@ -378,6 +378,8 @@ private val EN = mapOf<String, String>(
     "Novidades" to "What's new",
     "Não consegui sincronizar a changelog." to "Couldn't sync the changelog.",
     "Não tem conta? Crie a sua" to "No account? Create yours",
+    "O arquivo compactado%s será removido. A pasta extraída continua no aparelho." to
+        "The archive%s will be deleted. The extracted folder stays on the device.",
     "O que mudou em cada versão" to "What changed in each version",
     "Sincronizando..." to "Syncing...",
     "Novidades, suporte e reporte de bugs" to "News, support and bug reports",
