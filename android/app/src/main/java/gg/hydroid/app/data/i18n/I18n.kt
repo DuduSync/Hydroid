@@ -367,6 +367,7 @@ private val EN = mapOf<String, String>(
     "Não tem conta? Crie a sua" to "No account? Create yours",
     "Novidades, suporte e reporte de bugs" to "News, support and bug reports",
     "Real-Debrid (recomendado)" to "Real-Debrid (recommended)",
+    "Recomendado" to "Recommended",
     "Recomendado para o melhor funcionamento: baixa 1fichier, MEGA e repacks no cloud com velocidade total." to
         "Recommended for the best experience: downloads 1fichier, MEGA and cloud repacks at full speed.",
     "Telegram oficial" to "Official Telegram",

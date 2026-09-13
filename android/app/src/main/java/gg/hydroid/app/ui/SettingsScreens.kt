@@ -92,8 +92,9 @@ private const val TELEGRAM_URL = "https://t.me/HydroidOFC"
 
 // afiliado Real-Debrid: quem cria a conta por este link ajuda o projeto (o dev ganha dias)
 internal const val REALDEBRID_REFERRAL_URL = "https://real-debrid.com/?id=11384117"
-// verde da marca Real-Debrid (destaque do recomendado)
+// verde da marca Real-Debrid e cores de estado dos debrids (verde conectado / vermelho nao)
 internal val REALDEBRID_GREEN = Color(0xFF25A55A)
+internal val DEBRID_RED = Color(0xFFE5484D)
 
 private enum class SettingsPage { CONTA, INTEGRACOES, FONTES, CONFIG, LOGS, CREDITOS }
 
@@ -582,6 +583,7 @@ private fun NavRow(
     subtitle: String,
     beta: Boolean = false,
     borderColor: Color? = null,
+    tag: String? = null,
     onClick: () -> Unit
 ) {
     Card(
@@ -609,6 +611,23 @@ private fun NavRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1, overflow = TextOverflow.Ellipsis
                 )
+            }
+            if (tag != null) {
+                Box(
+                    Modifier
+                        .background(
+                            MaterialTheme.colorScheme.surfaceContainerHigh,
+                            RoundedCornerShape(6.dp)
+                        )
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        tag,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(Modifier.width(6.dp))
             }
             if (beta) {
                 BetaInfoButton()
@@ -793,21 +812,25 @@ private fun IntegracoesPage(onBack: () -> Unit) {
         NavRow(
             Icons.Filled.CloudDownload, tr("Real-Debrid"),
             if (rdKey.isBlank()) tr("Não configurado") else tr("Conectado"),
-            borderColor = REALDEBRID_GREEN
+            borderColor = if (rdKey.isBlank()) DEBRID_RED else REALDEBRID_GREEN,
+            tag = tr("Recomendado")
         ) { service = DebridService.REAL_DEBRID }
         NavRow(
             Icons.Filled.Cloud, tr("Premiumize"),
             if (pmKey.isBlank()) tr("Não configurado") else tr("Conectado"),
-            beta = true
+            beta = true,
+            borderColor = if (pmKey.isBlank()) DEBRID_RED else REALDEBRID_GREEN
         ) { service = DebridService.PREMIUMIZE }
         NavRow(
             Icons.Filled.Cloud, tr("AllDebrid"),
             if (adKey.isBlank()) tr("Não configurado") else tr("Conectado"),
-            beta = true
+            beta = true,
+            borderColor = if (adKey.isBlank()) DEBRID_RED else REALDEBRID_GREEN
         ) { service = DebridService.ALLDEBRID }
         NavRow(
             Icons.Filled.Cloud, tr("TorBox"),
-            if (tbKey.isBlank()) tr("Não configurado") else tr("Conectado")
+            if (tbKey.isBlank()) tr("Não configurado") else tr("Conectado"),
+            borderColor = if (tbKey.isBlank()) DEBRID_RED else REALDEBRID_GREEN
         ) { service = DebridService.TORBOX }
     }
 }
