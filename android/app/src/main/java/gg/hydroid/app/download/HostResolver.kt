@@ -31,6 +31,32 @@ object HostResolver {
         "mega.io" to tf("MEGA não é suportado no direto (use Real-Debrid/TorBox)")
     )
 
+    // rotulo do host pra UI mostrar de onde vem o download (Gofile, 1fichier, Torrent...)
+    fun hostLabel(uri: String): String {
+        if (uri.startsWith("magnet:", ignoreCase = true)) return "Torrent"
+        val host = runCatching { java.net.URI(uri).host?.lowercase() ?: "" }.getOrDefault("")
+        return when {
+            host.endsWith("gofile.io") || host.endsWith("gofile.com") -> "Gofile"
+            host.endsWith("pixeldrain.com") -> "PixelDrain"
+            host.endsWith("mediafire.com") -> "MediaFire"
+            host.endsWith("fuckingfast.co") -> "FuckingFast"
+            host.endsWith("rootz.so") -> "Rootz"
+            host.endsWith("datanodes.to") -> "Datanodes"
+            host.endsWith("vikingfile.com") -> "VikingFile"
+            host.endsWith("1fichier.com") -> "1fichier"
+            host.endsWith("mega.nz") || host.endsWith("mega.io") -> "MEGA"
+            host == "drive.google.com" -> "Google Drive"
+            host.isNotBlank() -> host.removePrefix("www.")
+            else -> ""
+        }
+    }
+
+    // hosts que so funcionam com conta premium ou pelo fluxo da pagina (precisam do navegador)
+    fun needsBrowser(uri: String): Boolean {
+        val host = runCatching { java.net.URI(uri).host?.lowercase() ?: "" }.getOrDefault("")
+        return blocked.any { host.endsWith(it.first) }
+    }
+
     suspend fun resolve(uri: String): Result {
         val host = runCatching { java.net.URI(uri).host?.lowercase() ?: "" }.getOrDefault("")
         return try {

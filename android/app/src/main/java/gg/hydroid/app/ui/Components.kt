@@ -34,6 +34,21 @@ import androidx.compose.ui.unit.dp
 import gg.hydroid.app.data.i18n.tf
 import gg.hydroid.app.data.i18n.tr
 import gg.hydroid.app.data.update.UpdateManager
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.viewinterop.AndroidView
+import gg.hydroid.app.data.log.AppLog
+import gg.hydroid.app.data.store.AppStore
+import gg.hydroid.app.download.DownloadEngine
+import gg.hydroid.app.download.DownloadMethod
 
 // mascara de fade no topo: o conteudo dissolve ate sumir (usado sob cabecalhos)
 fun Modifier.topFadeMask(height: Dp): Modifier = this
@@ -155,4 +170,76 @@ fun UpdateDialog() {
             }
         }
     )
+}
+
+
+// navegador interno para hosters com espera/login (1fichier etc).
+// o usuario baixa pela pagina; o download disparado e capturado (url + cookies) e o app assume
+@Composable
+fun HostBrowser(request: AppStore.BrowserRequest) {
+    BackHandler { AppStore.closeBrowser() }
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .statusBarsPadding()
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = { AppStore.closeBrowser() }) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, tr("Voltar"))
+            }
+            Text(
+                request.title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+        }
+        Text(
+            tr("Toque no botão de download do site; o Hydroid assume o download quando ele começar."),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
+        )
+        AndroidView(
+            factory = { ctx ->
+                android.webkit.WebView(ctx).apply {
+                    settings.javaScriptEnabled = true
+                    settings.domStorageEnabled = true
+                    settings.useWideViewPort = true
+                    settings.loadWithOverviewMode = true
+                    webViewClient = android.webkit.WebViewClient()
+                    setDownloadListener { dlUrl, ua, _, _, _ ->
+                        val cookie = android.webkit.CookieManager.getInstance().getCookie(dlUrl).orEmpty()
+                        AppStore.closeBrowser()
+                        AppLog.i("Hoster",
+                            "navegador capturou: ${dlUrl.take(100)} (cookie=${if (cookie.isBlank()) "nao" else "sim"})")
+                        val headers = buildMap {
+                            if (cookie.isNotBlank()) put("Cookie", cookie)
+                            if (!ua.isNullOrBlank()) put("User-Agent", ua)
+                        }
+                        DownloadEngine.start(
+                            AppStore.appContext,
+                            id = "dl-${System.currentTimeMillis()}",
+                            title = request.title,
+                            uri = dlUrl,
+                            method = DownloadMethod.DIRETO,
+                            headers = headers
+                        )
+                        android.widget.Toast.makeText(
+                            ctx, tr("Download capturado - iniciando"), android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    loadUrl(request.url)
+                }
+            },
+            onRelease = { it.stopLoading(); it.destroy() },
+            modifier = Modifier.fillMaxSize()
+        )
+    }
 }

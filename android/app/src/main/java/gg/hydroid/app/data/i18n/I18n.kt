@@ -54,6 +54,7 @@ private val EN = mapOf<String, String>(
     "Abrir no navegador" to "Open in browser",
     "1fichier: use Abrir no navegador ou Real-Debrid/TorBox" to
         "1fichier: use Open in browser or Real-Debrid/TorBox",
+    "Este site precisa do navegador - abrindo" to "This site needs the browser - opening",
     "Download capturado - iniciando" to "Download captured - starting",
     "Sites com espera ou login (1fichier, MEGA...)" to "Sites with wait or login (1fichier, MEGA...)",
     "Toque no botão de download do site; o Hydroid assume o download quando ele começar." to

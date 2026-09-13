@@ -99,6 +99,7 @@ import gg.hydroid.app.ui.DownloadsScreen
 import gg.hydroid.app.ui.LibraryScreen
 import gg.hydroid.app.ui.SettingsScreen
 import gg.hydroid.app.ui.SetupScreen
+import gg.hydroid.app.ui.HostBrowser
 import gg.hydroid.app.ui.theme.HydroidTheme
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -285,6 +286,10 @@ private fun HydroidRoot() {
                     .padding(bottom = 16.dp)
             )
         }
+
+        // navegador interno (hosters com espera/login): sobrepoe tudo e captura o download
+        val browserReq by AppStore.browser.collectAsState()
+        browserReq?.let { req -> HostBrowser(req) }
     }
 }
 

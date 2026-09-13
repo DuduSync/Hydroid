@@ -898,8 +898,17 @@ private fun DownloadCard(dl: ActiveDownload, modifier: Modifier = Modifier) {
                     dl.stage == "pausado" -> TextButton(onClick = { DownloadEngine.resume(dl.id) }) {
                         Text(tr("Continuar"))
                     }
-                    dl.stage == "erro" && dl.uri != null -> TextButton(onClick = { DownloadEngine.resume(dl.id) }) {
-                        Text(tr("Tentar de novo"))
+                    dl.stage == "erro" && dl.uri != null -> {
+                        TextButton(onClick = { DownloadEngine.resume(dl.id) }) {
+                            Text(tr("Tentar de novo"))
+                        }
+                        // hosts com espera/login: da pra resolver pelo navegador interno
+                        if (dl.method == "direto" && dl.uri!!.startsWith("http")) {
+                            TextButton(onClick = {
+                                AppLog.i("UI", "downloads: abrir ${dl.title} no navegador")
+                                AppStore.openBrowser(dl.uri!!, dl.title)
+                            }) { Text(tr("Abrir no navegador")) }
+                        }
                     }
                     dl.stage == "baixando" || dl.stage == "resolvendo" ||
                         dl.stage == "conectando ao swarm" || dl.stage.startsWith("cloud") ->

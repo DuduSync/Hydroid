@@ -71,6 +71,7 @@ import gg.hydroid.app.data.api.ProtonDbApi
 import gg.hydroid.app.data.api.RepackFinder
 import gg.hydroid.app.data.api.SteamApi
 import gg.hydroid.app.data.log.AppLog
+import gg.hydroid.app.download.HostResolver
 import gg.hydroid.app.data.model.*
 import gg.hydroid.app.data.store.AppStore
 import gg.hydroid.app.download.DownloadEngine
@@ -453,7 +454,6 @@ fun GameDetailScreen(vm: CatalogViewModel) {
     val torboxKey by AppStore.torboxKey.collectAsState()
     var optionsFor by remember { mutableStateOf<DownloadSheet?>(null) }
     var sourcesOpen by remember { mutableStateOf(false) }
-    var browserFor by remember { mutableStateOf<String?>(null) }
 
     // downloads disponiveis (mesma contagem dos cards da home)
     val allSources by AppStore.sources.collectAsState()
@@ -473,6 +473,13 @@ fun GameDetailScreen(vm: CatalogViewModel) {
 
     fun start(uri: String, method: DownloadMethod, title: String, headers: Map<String, String>? = null) {
         AppLog.i("Catalogo", "baixar: $title [${method.name}] ${uri.take(100)}")
+        // 1fichier/MEGA so funcionam pelo fluxo da pagina: abre o navegador em vez de falhar
+        if (method == DownloadMethod.DIRETO && HostResolver.needsBrowser(uri)) {
+            AppLog.i("Catalogo", "host exige navegador, abrindo direto: ${HostResolver.hostLabel(uri)}")
+            scope.launch { snackbar.showSnackbar(tr("Este site precisa do navegador - abrindo")) }
+            AppStore.openBrowser(uri, title)
+            return
+        }
         // notificacao desligada no sistema = usuario nao acompanha o download; avisa e oferece o atalho
         if (!androidx.core.app.NotificationManagerCompat.from(AppStore.appContext).areNotificationsEnabled()) {
             AppLog.w("Download", "notificacoes desativadas no sistema - avisando o usuario")
@@ -898,7 +905,7 @@ fun GameDetailScreen(vm: CatalogViewModel) {
                         val target = sheet.uris.firstOrNull { it.startsWith("http") } ?: sheet.uris.firstOrNull()
                         AppLog.i("Catalogo", "abrir no navegador: ${target?.take(100)}")
                         optionsFor = null
-                        browserFor = target
+                        target?.let { AppStore.openBrowser(it, sheet.title) }
                     }
                 )
             }
@@ -940,85 +947,6 @@ fun GameDetailScreen(vm: CatalogViewModel) {
                 }
             }
         }
-
-        // navegador interno: sites com espera/login (1fichier etc). o download disparado
-        // na pagina e capturado (url + cookies) e o engine assume
-        browserFor?.let { url ->
-            HostBrowserScreen(
-                url = url,
-                title = details?.name ?: game.name,
-                onCaptured = { directUrl, cookie, ua ->
-                    AppLog.i("Hoster",
-                        "navegador capturou: ${directUrl.take(100)} (cookie=${if (cookie.isBlank()) "nao" else "sim"})")
-                    browserFor = null
-                    val headers = buildMap<String, String> {
-                        if (cookie.isNotBlank()) put("Cookie", cookie)
-                        if (!ua.isNullOrBlank()) put("User-Agent", ua)
-                    }
-                    scope.launch { snackbar.showSnackbar(tr("Download capturado - iniciando")) }
-                    startChecked(directUrl, DownloadMethod.DIRETO, details?.name ?: game.name, headers)
-                },
-                onClose = { browserFor = null }
-            )
-        }
-    }
-}
-
-// navegador interno para hosters com espera/login: usuario baixa pela pagina e o app assume
-@Composable
-private fun HostBrowserScreen(
-    url: String,
-    title: String,
-    onCaptured: (String, String, String?) -> Unit,
-    onClose: () -> Unit
-) {
-    BackHandler { onClose() }
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
-    ) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onClose) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, tr("Voltar"))
-            }
-            Text(
-                title,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
-        }
-        Text(
-            tr("Toque no botão de download do site; o Hydroid assume o download quando ele começar."),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
-        )
-        AndroidView(
-            factory = { ctx ->
-                android.webkit.WebView(ctx).apply {
-                    settings.javaScriptEnabled = true
-                    settings.domStorageEnabled = true
-                    settings.useWideViewPort = true
-                    settings.loadWithOverviewMode = true
-                    webViewClient = android.webkit.WebViewClient()
-                    setDownloadListener { dlUrl, ua, _, _, _ ->
-                        val cookie = android.webkit.CookieManager.getInstance().getCookie(dlUrl).orEmpty()
-                        onCaptured(dlUrl, cookie, ua)
-                    }
-                    loadUrl(url)
-                }
-            },
-            onRelease = { it.stopLoading(); it.destroy() },
-            modifier = Modifier.fillMaxSize()
-        )
     }
 }
 
@@ -1061,7 +989,8 @@ private fun DownloadOptionsSheet(
         )
         Spacer(Modifier.height(6.dp))
         Text(sheet.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        val meta = listOfNotNull(sheet.fileSize, sheet.source).joinToString(" · ")
+        val hostLabel = HostResolver.hostLabel(sheet.uris.firstOrNull() ?: "").takeIf { it.isNotBlank() }
+        val meta = listOfNotNull(sheet.fileSize, sheet.source, hostLabel).joinToString(" · ")
         if (meta.isNotBlank()) {
             Spacer(Modifier.height(2.dp))
             Text(
@@ -1072,6 +1001,23 @@ private fun DownloadOptionsSheet(
         }
         Spacer(Modifier.height(18.dp))
 
+        // opcao nativa primeiro (torrent pra magnet, direto pra link)
+        if (hasMagnet) {
+            DownloadMethodRow(
+                icon = Icons.Filled.SportsEsports,
+                title = tr("Torrent"),
+                subtitle = tr("Baixa direto do swarm no aparelho")
+            ) { onPick(sheet.uris.first { it.startsWith("magnet:") }, DownloadMethod.TORRENT) }
+        }
+        if (hasHttp) {
+            DownloadMethodRow(
+                icon = Icons.Filled.Download,
+                title = tr("Direto"),
+                subtitle = tr("Download HTTP sem precisar de conta")
+            ) { onPick(sheet.uris.first { it.startsWith("http") }, DownloadMethod.DIRETO) }
+        }
+
+        // debrids (quando configurados): processam no cloud e cobrem 1fichier/MEGA/etc
         if (rdAvailable && debridUri != null) {
             DownloadMethodRow(
                 icon = Icons.Filled.CloudDownload,
@@ -1104,19 +1050,8 @@ private fun DownloadOptionsSheet(
             ) { onPick(debridUri, DownloadMethod.TORBOX) }
         }
 
-        if (hasMagnet) {
-            DownloadMethodRow(
-                icon = Icons.Filled.SportsEsports,
-                title = tr("Torrent"),
-                subtitle = tr("Baixa direto do swarm no aparelho")
-            ) { onPick(sheet.uris.first { it.startsWith("magnet:") }, DownloadMethod.TORRENT) }
-        }
+        // ultimo recurso: sites com espera/login (o app captura o download quando comecar)
         if (hasHttp) {
-            DownloadMethodRow(
-                icon = Icons.Filled.Download,
-                title = tr("Direto"),
-                subtitle = tr("Download HTTP sem precisar de conta")
-            ) { onPick(sheet.uris.first { it.startsWith("http") }, DownloadMethod.DIRETO) }
             DownloadMethodRow(
                 icon = Icons.Filled.Public,
                 title = tr("Abrir no navegador"),
@@ -1304,6 +1239,23 @@ private fun RepackCard(
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
+                }
+                // de onde vem o download (Torrent, Gofile, 1fichier...)
+                HostResolver.hostLabel(repack.uris.firstOrNull() ?: "").takeIf { it.isNotBlank() }?.let { host ->
+                    Box(
+                        Modifier
+                            .background(
+                                MaterialTheme.colorScheme.surfaceContainerHigh,
+                                RoundedCornerShape(6.dp)
+                            )
+                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            host,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
             Spacer(Modifier.height(12.dp))

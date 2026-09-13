@@ -74,6 +74,19 @@ object AppStore {
     private val _pendingOpenGame = MutableStateFlow<Long?>(null)
     val pendingOpenGame: StateFlow<Long?> = _pendingOpenGame
 
+    // navegador interno (hosters com espera/login): url a abrir + titulo do download
+    data class BrowserRequest(val url: String, val title: String)
+
+    private val _browser = MutableStateFlow<BrowserRequest?>(null)
+    val browser: StateFlow<BrowserRequest?> = _browser
+
+    fun openBrowser(url: String, title: String) {
+        AppLog.i("UI", "navegador: abrindo ${url.take(90)}")
+        _browser.value = BrowserRequest(url, title)
+    }
+
+    fun closeBrowser() { _browser.value = null }
+
     private val _hydraAuth = MutableStateFlow<HydraAuth?>(null)
     val hydraAuth: StateFlow<HydraAuth?> = _hydraAuth
 
