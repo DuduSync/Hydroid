@@ -1,0 +1,134 @@
+{
+  "versions": [
+    {
+      "version": "0.9.9",
+      "date": "em breve",
+      "changes": [
+        "Novidades (changelog) dentro do app, sincronizada direto do GitHub"
+      ]
+    },
+    {
+      "version": "0.9.8",
+      "date": "13/09/2026",
+      "changes": [
+        "Navegador interno: sites com espera ou login (1fichier, MEGA) agora funcionam (o app captura o download quando ele começa)",
+        "Resolvedores de hosters no Direto: Gofile, PixelDrain, MediaFire, FuckingFast, Rootz, Datanodes e VikingFile",
+        "O sheet de download mostra de onde vem (Torrent, Gofile, 1fichier...) e marca o método Recomendado",
+        "Integrações com cards verdes (conectado) e vermelhos (não configurado) + tag Recomendado no Real-Debrid",
+        "Lista de downloads com ordem estável e uma notificação por download",
+        "Fontes de outros jogos não aparecem mais (Watch Dogs não lista WD2/Legion)",
+        "Correções: TorBox, extração ao re-extrair, Abrir pasta, crash do serviço e aviso de notificações desativadas"
+      ]
+    },
+    {
+      "version": "0.9.7",
+      "date": "12/09/2026",
+      "changes": [
+        "Abrir pasta abre direto na pasta do download",
+        "Extração de arquivos resiliente (rebaixar/atualizar não quebra mais)",
+        "Aviso quando as notificações estão desativadas, com botão Ativar",
+        "Apagar a busca do catálogo volta para a home de descoberta"
+      ]
+    },
+    {
+      "version": "0.9.6",
+      "date": "12/09/2026",
+      "changes": [
+        "Correção do torrent zumbi: cancelar não deixa mais download fantasma nem notificação presa",
+        "Retomar download HTTP corrigido",
+        "Log completo do app (rede, ações e downloads) para diagnóstico"
+      ]
+    },
+    {
+      "version": "0.9.5",
+      "date": "12/09/2026",
+      "changes": [
+        "Troca de abas na dock voltou a deslizar com animação (mantendo o último clique)"
+      ]
+    },
+    {
+      "version": "0.9.4",
+      "date": "12/09/2026",
+      "changes": [
+        "Home de descoberta no Catálogo (Populares, Lançamentos, Em promoção, Em breve e Surpreenda-me)",
+        "Contagem de downloads nos cards, na Biblioteca e acima do botão Baixar",
+        "Pré-carregamento no boot: as abas já abrem populadas",
+        "O APK baixado pelo auto-update é apagado depois de instalar"
+      ]
+    },
+    {
+      "version": "0.9.3",
+      "date": "12/09/2026",
+      "changes": [
+        "Toques rápidos na dock agora são sempre respeitados (o último clique vence)"
+      ]
+    },
+    {
+      "version": "0.9.2",
+      "date": "12/09/2026",
+      "changes": [
+        "Correção: a troca de aba parava uma antes do destino"
+      ]
+    },
+    {
+      "version": "0.9.1",
+      "date": "12/09/2026",
+      "changes": [
+        "Arraste entre abas (HorizontalPager) e dock/chips sem ripple"
+      ]
+    },
+    {
+      "version": "0.9",
+      "date": "12/09/2026",
+      "changes": [
+        "Temas: Sistema, Claro, Escuro, AMOLED e Glassmorphism",
+        "Dock flutuante com pílula deslizante e animações",
+        "Aba inicial configurável"
+      ]
+    },
+    {
+      "version": "0.8",
+      "date": "12/09/2026",
+      "changes": [
+        "Biblioteca com busca, ordenação, favoritos, coleções e atalhos na tela inicial",
+        "Página do jogo completa: How Long To Beat, ProtonDB, galeria e requisitos",
+        "Botão único de download com todas as fontes"
+      ]
+    },
+    {
+      "version": "0.7",
+      "date": "12/09/2026",
+      "changes": [
+        "Interface em português e inglês",
+        "Limpar cache nas configurações"
+      ]
+    },
+    {
+      "version": "0.6",
+      "date": "12/09/2026",
+      "changes": [
+        "Atualização automática do app",
+        "Fila de downloads com limite de simultâneos",
+        "Progresso com ETA, seeds e trackers públicos",
+        "Abrir pasta, extrair e apagar o que foi baixado",
+        "Só baixar no Wi-Fi e limite de velocidade"
+      ]
+    },
+    {
+      "version": "0.5",
+      "date": "12/09/2026",
+      "changes": [
+        "Pausar e continuar downloads",
+        "Escolha da pasta de downloads no setup",
+        "Debrids beta (Premiumize, AllDebrid, TorBox)"
+      ]
+    },
+    {
+      "version": "0.4",
+      "date": "10/09/2026",
+      "changes": [
+        "Primeira versão pública: busca Steam, métodos de download, torrent nativo e extração"
+      ]
+    }
+  ]
+}
