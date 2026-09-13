@@ -26,7 +26,7 @@ object HostResolver {
 
     // hosts que exigem fluxo proprietario: melhor erro claro do que baixar HTML
     private val blocked = listOf(
-        "1fichier.com" to tf("1fichier exige conta premium (use Real-Debrid/TorBox)"),
+        "1fichier.com" to tf("1fichier: use Abrir no navegador ou Real-Debrid/TorBox"),
         "mega.nz" to tf("MEGA não é suportado no direto (use Real-Debrid/TorBox)"),
         "mega.io" to tf("MEGA não é suportado no direto (use Real-Debrid/TorBox)")
     )

@@ -32,12 +32,18 @@ object DownloadEngine {
     @Volatile private var cancelled = setOf<String>()
     @Volatile private var paused = setOf<String>()
 
-    private data class Queued(val id: String, val title: String, val uri: String, val method: DownloadMethod)
+    private data class Queued(
+        val id: String, val title: String, val uri: String, val method: DownloadMethod,
+        val headers: Map<String, String>? = null
+    )
     private val queue = mutableListOf<Queued>()
     private val busyIds = mutableSetOf<String>()
     @Volatile private var pumping = false
 
-    fun start(context: Context, id: String, title: String, uri: String, method: DownloadMethod) {
+    fun start(
+        context: Context, id: String, title: String, uri: String, method: DownloadMethod,
+        headers: Map<String, String>? = null
+    ) {
         // link limpo/validado (campo manual as vezes chega com espacos ou texto emendado)
         val cleanUri = normalizeUri(uri)
         if (cleanUri == null) {
@@ -56,10 +62,11 @@ object DownloadEngine {
             }
         synchronized(this) {
             queue.removeAll { it.id == id }
-            queue.add(Queued(id, title, cleanUri, method))
+            queue.add(Queued(id, title, cleanUri, method, headers))
         }
         AppLog.i("Download", "enfileirado: $title [${tagOf(method)}] fila=${queue.size}")
-        post(ActiveDownload(id, title, stage = "na fila", method = tagOf(method), uri = cleanUri))
+        post(ActiveDownload(id, title, stage = "na fila", method = tagOf(method), uri = cleanUri,
+            headers = headers))
         pump()
     }
 
@@ -127,7 +134,7 @@ object DownloadEngine {
 
     private fun launchDownload(q: Queued) {
         val context = AppStore.appContext
-        val (id, title, uri, method) = q
+        val (id, title, uri, method, headers) = q
         if (method == DownloadMethod.TORRENT) {
             if (!uri.startsWith("magnet:")) {
                 post(ActiveDownload(id, title, stage = "erro", method = "torrent",
@@ -170,7 +177,7 @@ object DownloadEngine {
                     DownloadMethod.DIRETO -> resolveDirect(uri)
                     else -> uri
                 }
-                downloadFile(context, id, title, directUrl, methodTag)
+                downloadFile(context, id, title, directUrl, methodTag, headers)
             } catch (e: CancellationException) {
                 AppLog.i("Download", if (paused.contains(id)) "pausado: $title"
                     else "cancelado pelo usuário: $title")
@@ -234,7 +241,7 @@ object DownloadEngine {
         if (dl.method == "torrent") {
             TorrentEngine.resume(AppStore.appContext, id, dl.title, uri)
         } else {
-            start(AppStore.appContext, id, dl.title, uri, methodFromTag(dl.method))
+            start(AppStore.appContext, id, dl.title, uri, methodFromTag(dl.method), dl.headers)
         }
     }
 
@@ -449,7 +456,8 @@ object DownloadEngine {
     }
 
     private suspend fun downloadFile(
-        context: Context, id: String, title: String, url: String, methodTag: String
+        context: Context, id: String, title: String, url: String, methodTag: String,
+        extraHeaders: Map<String, String>? = null
     ) {
         val safe = safeName(title)
         val outFile = File(AppStore.targetDir(context), "$safe.bin")
@@ -457,7 +465,8 @@ object DownloadEngine {
             fun open(startAt: Long): okhttp3.Response {
                 val rq = Request.Builder().url(url)
                 if (startAt > 0) rq.header("Range", "bytes=$startAt-")
-                rq.header("User-Agent", HostResolver.BROWSER_UA)
+                rq.header("User-Agent", extraHeaders?.get("User-Agent") ?: HostResolver.BROWSER_UA)
+                extraHeaders?.forEach { (k, v) -> if (!k.equals("User-Agent", true)) rq.header(k, v) }
                 return HttpClient.client.newCall(rq.build()).execute()
             }
             var startAt = if (outFile.exists()) outFile.length() else 0L

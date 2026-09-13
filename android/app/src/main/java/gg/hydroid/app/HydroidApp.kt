@@ -21,6 +21,14 @@ class HydroidApp : Application() {
         super.onCreate()
         AppLog.init(this)
         AppStore.init(this)
+        // captura crash: grava o stack no log ANTES do app morrer (senao o relato vem sem stack)
+        runCatching {
+            val prev = Thread.getDefaultUncaughtExceptionHandler()
+            Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+                runCatching { AppLog.e("FATAL", "crash na thread ${thread.name}", throwable) }
+                prev?.uncaughtException(thread, throwable)
+            }
+        }
         AppLog.i("App", "estado: setup=${AppStore.setupDone.value} tema=${AppStore.theme.value} " +
             "idioma=${AppStore.language.value.ifBlank { "sistema" }} biblioteca=${AppStore.library.value.size} " +
             "fontes=${AppStore.sources.value.size} downloads=${AppStore.downloads.value.size}")

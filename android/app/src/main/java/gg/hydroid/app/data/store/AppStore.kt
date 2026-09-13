@@ -313,7 +313,11 @@ object AppStore {
         // preserva a uri original (magnet/hoster) entre posts de progresso
         val current = _downloads.value
         val prev = current.firstOrNull { it.id == dl.id }
-        val merged = if (dl.uri == null && prev?.uri != null) dl.copy(uri = prev.uri) else dl
+        // posts de progresso vem sem uri/headers: preserva do card anterior
+        val merged = dl.copy(
+            uri = dl.uri ?: prev?.uri,
+            headers = dl.headers ?: prev?.headers
+        )
         fun isActive(d: ActiveDownload) = d.stage !in setOf("concluido", "erro")
         val idx = current.indexOfFirst { it.id == merged.id }
         val updated: List<ActiveDownload> = when {

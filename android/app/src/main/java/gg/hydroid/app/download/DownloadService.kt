@@ -33,21 +33,25 @@ class DownloadService : Service() {
     companion object {
         private const val CHANNEL_ID = "downloads"
         private const val SUMMARY_ID = 42
-        @Volatile private var running = false
+        @Volatile private var running = false      // start requisitado
+        @Volatile private var started = false      // onStartCommand ja rodou
+        @Volatile private var stopPending = false  // pediu parar antes de subir
 
         fun ensureChannel(context: Context) {
-            val mgr = context.getSystemService(NotificationManager::class.java)
-            if (mgr.getNotificationChannel(CHANNEL_ID) == null) {
-                mgr.createNotificationChannel(
-                    NotificationChannel(
-                        CHANNEL_ID,
-                        "Downloads",
-                        NotificationManager.IMPORTANCE_LOW
-                    ).apply {
-                        description = tr("Progresso dos downloads")
-                        setShowBadge(false)
-                    }
-                )
+            runCatching {
+                val mgr = context.getSystemService(NotificationManager::class.java)
+                if (mgr.getNotificationChannel(CHANNEL_ID) == null) {
+                    mgr.createNotificationChannel(
+                        NotificationChannel(
+                            CHANNEL_ID,
+                            "Downloads",
+                            NotificationManager.IMPORTANCE_LOW
+                        ).apply {
+                            description = tr("Progresso dos downloads")
+                            setShowBadge(false)
+                        }
+                    )
+                }
             }
         }
 
@@ -55,40 +59,67 @@ class DownloadService : Service() {
         fun ensureRunning(context: Context) {
             if (running) return
             running = true
+            stopPending = false
             AppLog.i("Service", "iniciando foreground service de downloads")
-            ContextCompat.startForegroundService(context, Intent(context, DownloadService::class.java))
+            runCatching {
+                ContextCompat.startForegroundService(context, Intent(context, DownloadService::class.java))
+            }.onFailure {
+                running = false
+                AppLog.w("Service", "nao consegui iniciar o servico: ${it.message}")
+            }
         }
 
         fun stop(context: Context) {
             val wasRunning = running
             running = false
+            // servico ainda subindo: deixa o onStartCommand se encerrar sozinho (a corrida
+            // start->stop derruba o processo em algumas versoes do Android)
+            if (!started) {
+                stopPending = true
+                if (wasRunning) AppLog.i("Service", "parada adiada (servico ainda iniciando)")
+                return
+            }
             if (wasRunning) AppLog.i("Service", "parando notificacao (sem downloads ativos)")
-            context.stopService(Intent(context, DownloadService::class.java))
+            runCatching { context.stopService(Intent(context, DownloadService::class.java)) }
         }
 
         private fun notifId(dlId: String) = 1000 + (dlId.hashCode() and 0x7fffffff) % 1_000_000
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        ensureChannel(this)
-        startForeground(SUMMARY_ID, buildSummary(emptyList()))
+        started = true
+        // startForeground nunca pode derrubar o app (ex.: notificacao bloqueada/limite do sistema)
+        runCatching {
+            ensureChannel(this)
+            startForeground(SUMMARY_ID, buildSummary(emptyList()))
+        }.onFailure { AppLog.w("Service", "startForeground falhou: ${it.message}") }
+        if (stopPending) {
+            stopPending = false
+            AppLog.i("Service", "parada adiada executada")
+            clearIndividual()
+            stopSelf()
+            return START_NOT_STICKY
+        }
         scope.launch {
             AppStore.downloads.collect { list ->
-                val active = list.filter { it.stage !in listOf("concluido", "erro") }
-                if (active.isEmpty()) {
-                    clearIndividual()
-                    stopSelf()
-                } else {
-                    render(active)
-                }
+                runCatching {
+                    val active = list.filter { it.stage !in listOf("concluido", "erro") }
+                    if (active.isEmpty()) {
+                        clearIndividual()
+                        stopSelf()
+                    } else {
+                        render(active)
+                    }
+                }.onFailure { AppLog.w("Service", "atualizar notificacoes falhou: ${it.message}") }
             }
         }
         return START_NOT_STICKY
     }
 
     override fun onDestroy() {
+        started = false
         scope.cancel()
-        clearIndividual()
+        runCatching { clearIndividual() }
         super.onDestroy()
     }
 
@@ -97,25 +128,28 @@ class DownloadService : Service() {
     // resumo sempre; notificacao individual so quando tem 2+ (com 1 seria duplicado)
     private fun render(active: List<ActiveDownload>) {
         val mgr = getSystemService(NotificationManager::class.java) ?: return
-        mgr.notify(SUMMARY_ID, buildSummary(active))
+        runCatching { mgr.notify(SUMMARY_ID, buildSummary(active)) }
+            .onFailure { AppLog.w("Service", "notificar resumo falhou: ${it.message}") }
         if (active.size < 2) {
             clearIndividual()
             return
         }
         val current = active.map { notifId(it.id) }.toSet()
-        posted.filter { it !in current }.forEach { mgr.cancel(it) }
-        posted.retainAll(current)
-        active.forEach { dl ->
-            val id = notifId(dl.id)
-            posted.add(id)
-            mgr.notify(id, buildDownload(dl))
-            AppLog.i("Service", "notificacao [${dl.id}]: ${dl.title} | ${textOf(dl)} | ${(dl.progress * 100).toInt()}%")
-        }
+        runCatching {
+            posted.filter { it !in current }.forEach { mgr.cancel(it) }
+            posted.retainAll(current)
+            active.forEach { dl ->
+                val id = notifId(dl.id)
+                posted.add(id)
+                mgr.notify(id, buildDownload(dl))
+                AppLog.i("Service", "notificacao [${dl.id}]: ${dl.title} | ${textOf(dl)} | ${(dl.progress * 100).toInt()}%")
+            }
+        }.onFailure { AppLog.w("Service", "notificar download falhou: ${it.message}") }
     }
 
     private fun clearIndividual() {
         val mgr = getSystemService(NotificationManager::class.java)
-        posted.forEach { mgr.cancel(it) }
+        runCatching { posted.forEach { mgr.cancel(it) } }
         posted.clear()
     }
 

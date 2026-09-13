@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material3.*
@@ -59,6 +60,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -451,6 +453,7 @@ fun GameDetailScreen(vm: CatalogViewModel) {
     val torboxKey by AppStore.torboxKey.collectAsState()
     var optionsFor by remember { mutableStateOf<DownloadSheet?>(null) }
     var sourcesOpen by remember { mutableStateOf(false) }
+    var browserFor by remember { mutableStateOf<String?>(null) }
 
     // downloads disponiveis (mesma contagem dos cards da home)
     val allSources by AppStore.sources.collectAsState()
@@ -468,7 +471,7 @@ fun GameDetailScreen(vm: CatalogViewModel) {
         proton = ProtonDbApi.tier(game.id)
     }
 
-    fun start(uri: String, method: DownloadMethod, title: String) {
+    fun start(uri: String, method: DownloadMethod, title: String, headers: Map<String, String>? = null) {
         AppLog.i("Catalogo", "baixar: $title [${method.name}] ${uri.take(100)}")
         // notificacao desligada no sistema = usuario nao acompanha o download; avisa e oferece o atalho
         if (!androidx.core.app.NotificationManagerCompat.from(AppStore.appContext).areNotificationsEnabled()) {
@@ -498,17 +501,18 @@ fun GameDetailScreen(vm: CatalogViewModel) {
             id = "dl-${System.currentTimeMillis()}",
             title = title,
             uri = uri,
-            method = method
+            method = method,
+            headers = headers
         )
         scope.launch { snackbar.showSnackbar(tr("Download iniciado - acompanhe em Downloads")) }
     }
 
-    fun startChecked(uri: String, method: DownloadMethod, title: String) {
+    fun startChecked(uri: String, method: DownloadMethod, title: String, headers: Map<String, String>? = null) {
         if (method == DownloadMethod.RD && rdKey.isBlank()) {
             scope.launch { snackbar.showSnackbar(tr("Configure a chave Real-Debrid em Ajustes")) }
             return
         }
-        start(uri, method, title)
+        start(uri, method, title, headers)
     }
 
     Scaffold(
@@ -889,6 +893,12 @@ fun GameDetailScreen(vm: CatalogViewModel) {
                     onPick = { uri, method ->
                         optionsFor = null
                         startChecked(uri, method, sheet.title)
+                    },
+                    onOpenBrowser = {
+                        val target = sheet.uris.firstOrNull { it.startsWith("http") } ?: sheet.uris.firstOrNull()
+                        AppLog.i("Catalogo", "abrir no navegador: ${target?.take(100)}")
+                        optionsFor = null
+                        browserFor = target
                     }
                 )
             }
@@ -930,6 +940,85 @@ fun GameDetailScreen(vm: CatalogViewModel) {
                 }
             }
         }
+
+        // navegador interno: sites com espera/login (1fichier etc). o download disparado
+        // na pagina e capturado (url + cookies) e o engine assume
+        browserFor?.let { url ->
+            HostBrowserScreen(
+                url = url,
+                title = details?.name ?: game.name,
+                onCaptured = { directUrl, cookie, ua ->
+                    AppLog.i("Hoster",
+                        "navegador capturou: ${directUrl.take(100)} (cookie=${if (cookie.isBlank()) "nao" else "sim"})")
+                    browserFor = null
+                    val headers = buildMap<String, String> {
+                        if (cookie.isNotBlank()) put("Cookie", cookie)
+                        if (!ua.isNullOrBlank()) put("User-Agent", ua)
+                    }
+                    scope.launch { snackbar.showSnackbar(tr("Download capturado - iniciando")) }
+                    startChecked(directUrl, DownloadMethod.DIRETO, details?.name ?: game.name, headers)
+                },
+                onClose = { browserFor = null }
+            )
+        }
+    }
+}
+
+// navegador interno para hosters com espera/login: usuario baixa pela pagina e o app assume
+@Composable
+private fun HostBrowserScreen(
+    url: String,
+    title: String,
+    onCaptured: (String, String, String?) -> Unit,
+    onClose: () -> Unit
+) {
+    BackHandler { onClose() }
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .statusBarsPadding()
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onClose) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, tr("Voltar"))
+            }
+            Text(
+                title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+        }
+        Text(
+            tr("Toque no botão de download do site; o Hydroid assume o download quando ele começar."),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
+        )
+        AndroidView(
+            factory = { ctx ->
+                android.webkit.WebView(ctx).apply {
+                    settings.javaScriptEnabled = true
+                    settings.domStorageEnabled = true
+                    settings.useWideViewPort = true
+                    settings.loadWithOverviewMode = true
+                    webViewClient = android.webkit.WebViewClient()
+                    setDownloadListener { dlUrl, ua, _, _, _ ->
+                        val cookie = android.webkit.CookieManager.getInstance().getCookie(dlUrl).orEmpty()
+                        onCaptured(dlUrl, cookie, ua)
+                    }
+                    loadUrl(url)
+                }
+            },
+            onRelease = { it.stopLoading(); it.destroy() },
+            modifier = Modifier.fillMaxSize()
+        )
     }
 }
 
@@ -948,7 +1037,8 @@ private fun DownloadOptionsSheet(
     premiumizeAvailable: Boolean,
     alldebridAvailable: Boolean,
     torboxAvailable: Boolean,
-    onPick: (String, DownloadMethod) -> Unit
+    onPick: (String, DownloadMethod) -> Unit,
+    onOpenBrowser: () -> Unit
 ) {
     val hasMagnet = sheet.uris.any { it.startsWith("magnet:") }
     val hasHttp = sheet.uris.any { it.startsWith("http") }
@@ -1027,6 +1117,11 @@ private fun DownloadOptionsSheet(
                 title = tr("Direto"),
                 subtitle = tr("Download HTTP sem precisar de conta")
             ) { onPick(sheet.uris.first { it.startsWith("http") }, DownloadMethod.DIRETO) }
+            DownloadMethodRow(
+                icon = Icons.Filled.Public,
+                title = tr("Abrir no navegador"),
+                subtitle = tr("Sites com espera ou login (1fichier, MEGA...)")
+            ) { onOpenBrowser() }
         }
     }
 }

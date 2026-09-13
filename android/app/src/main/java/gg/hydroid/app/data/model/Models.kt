@@ -184,7 +184,9 @@ data class ActiveDownload(
     val uri: String? = null,
     val peers: Int = 0,
     val seeds: Int = 0,
-    val savedPaths: List<String> = emptyList()
+    val savedPaths: List<String> = emptyList(),
+    // cabecalhos extras capturados no navegador interno (ex.: Cookie do 1fichier)
+    val headers: Map<String, String>? = null
 )
 
 @Serializable

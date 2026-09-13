@@ -51,8 +51,13 @@ private val EN = mapOf<String, String>(
     "%s: não consegui resolver o link" to "%s: could not resolve the link",
     "%s: precisa da conta Hydra (Ajustes > Conta) ou Real-Debrid" to
         "%s: requires the Hydra account (Settings > Account) or Real-Debrid",
-    "1fichier exige conta premium (use Real-Debrid/TorBox)" to
-        "1fichier requires a premium account (use Real-Debrid/TorBox)",
+    "Abrir no navegador" to "Open in browser",
+    "1fichier: use Abrir no navegador ou Real-Debrid/TorBox" to
+        "1fichier: use Open in browser or Real-Debrid/TorBox",
+    "Download capturado - iniciando" to "Download captured - starting",
+    "Sites com espera ou login (1fichier, MEGA...)" to "Sites with wait or login (1fichier, MEGA...)",
+    "Toque no botão de download do site; o Hydroid assume o download quando ele começar." to
+        "Tap the site's download button; Hydroid takes over as soon as it starts.",
     "MEGA não é suportado no direto (use Real-Debrid/TorBox)" to
         "MEGA is not supported for direct downloads (use Real-Debrid/TorBox)",
     "1 usuário bloqueado" to "1 blocked user",
