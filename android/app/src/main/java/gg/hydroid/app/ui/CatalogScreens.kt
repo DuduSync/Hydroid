@@ -1046,8 +1046,7 @@ private fun DownloadOptionsSheet(
             DownloadMethodRow(
                 icon = Icons.Filled.CloudDownload,
                 title = tr("TorBox"),
-                subtitle = tr("Processa no cloud e baixa em alta velocidade"),
-                beta = true
+                subtitle = tr("Processa no cloud e baixa em alta velocidade")
             ) { onPick(debridUri, DownloadMethod.TORBOX) }
         }
 

@@ -56,7 +56,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -93,6 +92,8 @@ private const val TELEGRAM_URL = "https://t.me/HydroidOFC"
 
 // afiliado Real-Debrid: quem cria a conta por este link ajuda o projeto (o dev ganha dias)
 internal const val REALDEBRID_REFERRAL_URL = "https://real-debrid.com/?id=11384117"
+// verde da marca Real-Debrid (destaque do recomendado)
+internal val REALDEBRID_GREEN = Color(0xFF25A55A)
 
 private enum class SettingsPage { CONTA, INTEGRACOES, FONTES, CONFIG, LOGS, CREDITOS }
 
@@ -580,12 +581,14 @@ private fun NavRow(
     title: String,
     subtitle: String,
     beta: Boolean = false,
+    borderColor: Color? = null,
     onClick: () -> Unit
 ) {
     Card(
         onClick = onClick,
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        border = borderColor?.let { BorderStroke(1.5.dp, it) },
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -789,7 +792,8 @@ private fun IntegracoesPage(onBack: () -> Unit) {
         Spacer(Modifier.height(4.dp))
         NavRow(
             Icons.Filled.CloudDownload, tr("Real-Debrid"),
-            if (rdKey.isBlank()) tr("Não configurado") else tr("Conectado")
+            if (rdKey.isBlank()) tr("Não configurado") else tr("Conectado"),
+            borderColor = REALDEBRID_GREEN
         ) { service = DebridService.REAL_DEBRID }
         NavRow(
             Icons.Filled.Cloud, tr("Premiumize"),
@@ -803,8 +807,7 @@ private fun IntegracoesPage(onBack: () -> Unit) {
         ) { service = DebridService.ALLDEBRID }
         NavRow(
             Icons.Filled.Cloud, tr("TorBox"),
-            if (tbKey.isBlank()) tr("Não configurado") else tr("Conectado"),
-            beta = true
+            if (tbKey.isBlank()) tr("Não configurado") else tr("Conectado")
         ) { service = DebridService.TORBOX }
     }
 }
@@ -908,24 +911,19 @@ private fun DebridServicePage(service: DebridService, onBack: () -> Unit) {
             // afiliado Real-Debrid: criar conta pelo link ajuda o projeto (e desbloqueia
             // 1fichier/MEGA/repacks no cloud). verde + glow = recomendado
             if (service.id == "rd") {
-                Spacer(Modifier.height(14.dp))
-                val rdGreen = Color(0xFF25A55A)
-                OutlinedButton(
+                Spacer(Modifier.height(10.dp))
+                TextButton(
                     onClick = {
                         AppLog.i("UI", "integracoes: criar conta Real-Debrid (link do projeto)")
                         uriHandler.openUri(REALDEBRID_REFERRAL_URL)
                     },
-                    border = BorderStroke(1.5.dp, rdGreen),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = rdGreen),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .shadow(16.dp, RoundedCornerShape(28.dp), ambientColor = rdGreen, spotColor = rdGreen)
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(Icons.Filled.PersonAdd, null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text(tr("Não tem conta? Crie a sua"), fontWeight = FontWeight.Bold)
+                    Text(tr("Não tem conta? Crie a sua"))
                 }
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(4.dp))
                 Text(
                     tr("Recomendado para o melhor funcionamento: baixa 1fichier, MEGA e repacks no cloud com velocidade total."),
                     style = MaterialTheme.typography.bodySmall,
