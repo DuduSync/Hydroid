@@ -16,6 +16,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -49,6 +50,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -1560,6 +1562,8 @@ private fun LogsPage(onBack: () -> Unit) {
 
 // ---------- Loja de fontes (Hydra Library) ----------
 
+private const val HYDROID_FILTER = "__hydroid__"
+
 private fun storeStatusColor(status: String): Color = when (status) {
     "Trusted" -> REALDEBRID_GREEN
     "Safe For Use" -> Color(0xFF3B82F6)
@@ -1578,6 +1582,7 @@ private fun SourceStorePage(onBack: () -> Unit) {
     var loading by remember { mutableStateOf(true) }
     var reload by remember { mutableStateOf(0) }
     var query by remember { mutableStateOf("") }
+    var filter by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(reload) {
         loading = true
@@ -1586,8 +1591,17 @@ private fun SourceStorePage(onBack: () -> Unit) {
         loading = false
     }
 
-    val shown = if (query.isBlank()) all else all.filter {
-        it.title.orEmpty().contains(query, true) || it.description.orEmpty().contains(query, true)
+    val statusOptions = remember(all) {
+        all.flatMap { it.status.orEmpty() }.distinct().sorted()
+    }
+    val shown = all.filter { s ->
+        val tagOk = filter == null ||
+            (filter == HYDROID_FILTER && SourceStore.isHydroidRecommended(s)) ||
+            s.status.orEmpty().contains(filter)
+        val queryOk = query.isBlank() ||
+            s.title.orEmpty().contains(query, true) ||
+            s.description.orEmpty().contains(query, true)
+        tagOk && queryOk
     }
 
     SettingsPageScaffold(tr("Loja de fontes"), onBack) {
@@ -1600,6 +1614,35 @@ private fun SourceStorePage(onBack: () -> Unit) {
             shape = RoundedCornerShape(14.dp),
             modifier = Modifier.fillMaxWidth()
         )
+        // filtros por tag (como no site), incluindo a recomendada pro Hydroid
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            item {
+                FilterChip(
+                    selected = filter == null,
+                    onClick = { filter = null },
+                    label = { Text(tr("Todas")) }
+                )
+            }
+            item {
+                FilterChip(
+                    selected = filter == HYDROID_FILTER,
+                    onClick = { filter = if (filter == HYDROID_FILTER) null else HYDROID_FILTER },
+                    label = { Text(tr("Recomendada pro Hydroid")) },
+                    leadingIcon = {
+                        Icon(Icons.Filled.Star, null, modifier = Modifier.size(FilterChipDefaults.IconSize))
+                    }
+                )
+            }
+            statusOptions.forEach { st ->
+                item {
+                    FilterChip(
+                        selected = filter == st,
+                        onClick = { filter = if (filter == st) null else st },
+                        label = { Text(st) }
+                    )
+                }
+            }
+        }
         when {
             shown.isEmpty() && loading -> Box(
                 Modifier.fillMaxWidth().padding(24.dp),
@@ -1672,6 +1715,20 @@ private fun StoreSourceCard(
             }
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (SourceStore.isHydroidRecommended(src)) {
+                    Box(
+                        Modifier
+                            .background(REALDEBRID_GREEN.copy(alpha = 0.18f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            tr("Recomendada pro Hydroid"),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = REALDEBRID_GREEN,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
                 src.status.orEmpty().forEach { st ->
                     Box(
                         Modifier

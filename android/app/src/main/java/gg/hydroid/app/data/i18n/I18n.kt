@@ -382,6 +382,7 @@ private val EN = mapOf<String, String>(
     "Sincronizando..." to "Syncing...",
     "Novidades, suporte e reporte de bugs" to "News, support and bug reports",
     "Real-Debrid (recomendado)" to "Real-Debrid (recommended)",
+    "Recomendada pro Hydroid" to "Recommended for Hydroid",
     "Recomendado" to "Recommended",
     "Recomendado para o melhor funcionamento: baixa 1fichier, MEGA e repacks no cloud com velocidade total." to
         "Recommended for the best experience: downloads 1fichier, MEGA and cloud repacks at full speed.",

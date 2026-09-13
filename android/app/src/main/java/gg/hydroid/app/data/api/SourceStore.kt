@@ -52,6 +52,14 @@ object SourceStore {
         JsonCfg.json.decodeFromString<Response>(f.readText()).sources
     }.getOrDefault(emptyList())
 
+    // fontes com jogos pre-instalados (sem instalador: extrai e joga) sao as ideais
+    // pro Hydroid; a propria descricao da fonte diz isso ("pre-installed", "uncompressed"...)
+    fun isHydroidRecommended(s: StoreSource): Boolean {
+        val text = ((s.title ?: "") + " " + (s.description ?: "")).lowercase()
+        return Regex("pre[- ]?install|preinstal|portable|uncompressed|no install|descompactad")
+            .containsMatchIn(text)
+    }
+
     // baixa a lista e atualiza o cache
     suspend fun fetch(context: Context): List<StoreSource>? = withContext(Dispatchers.IO) {
         runCatching {
