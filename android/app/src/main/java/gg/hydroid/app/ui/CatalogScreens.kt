@@ -68,6 +68,7 @@ import coil.compose.rememberAsyncImagePainter
 import gg.hydroid.app.data.api.FeaturedCache
 import gg.hydroid.app.data.api.HydraCloudApi
 import gg.hydroid.app.data.api.ProtonDbApi
+import gg.hydroid.app.data.api.RdHosts
 import gg.hydroid.app.data.api.RepackFinder
 import gg.hydroid.app.data.api.SteamApi
 import gg.hydroid.app.data.log.AppLog
@@ -969,8 +970,25 @@ private fun DownloadOptionsSheet(
     onOpenBrowser: () -> Unit
 ) {
     val uriHandlerRef = LocalUriHandler.current
+    val rdDomains by RdHosts.domains.collectAsState()
+    LaunchedEffect(Unit) { RdHosts.ensureLoaded() }
     val hasMagnet = sheet.uris.any { it.startsWith("magnet:") }
     val hasHttp = sheet.uris.any { it.startsWith("http") }
+    // tag "Recomendado": RD quando suporta o hoster (lista oficial); em torrent,
+    // o debrid do usuario (cloud costuma ser mais rapido que swarm fraco)
+    val httpHost = sheet.uris.firstOrNull { it.startsWith("http") }
+        ?.let { runCatching { java.net.URI(it).host ?: "" }.getOrDefault("") } ?: ""
+    val rdRecommended = hasHttp && rdAvailable && rdDomains.isNotEmpty() &&
+        rdDomains.any { httpHost.lowercase().endsWith(it) || httpHost.lowercase().removePrefix("www.") == it }
+    val magnetDebrid = if (hasMagnet) when {
+        rdAvailable -> "rd"
+        premiumizeAvailable -> "pm"
+        alldebridAvailable -> "ad"
+        torboxAvailable -> "tb"
+        else -> null
+    } else null
+    fun recTag(id: String): String? =
+        if (magnetDebrid == id || (id == "rd" && rdRecommended)) tr("Recomendado") else null
     // uri preferida para servicos debrid: magnet > http > primeira
     val debridUri = sheet.uris.firstOrNull { it.startsWith("magnet:") }
         ?: sheet.uris.firstOrNull { it.startsWith("http") }
@@ -1023,7 +1041,8 @@ private fun DownloadOptionsSheet(
             DownloadMethodRow(
                 icon = Icons.Filled.CloudDownload,
                 title = tr("Real-Debrid"),
-                subtitle = tr("Processa no cloud e baixa em alta velocidade")
+                subtitle = tr("Processa no cloud e baixa em alta velocidade"),
+                tag = recTag("rd")
             ) { onPick(debridUri, DownloadMethod.RD) }
         }
         if (premiumizeAvailable && debridUri != null) {
@@ -1031,7 +1050,8 @@ private fun DownloadOptionsSheet(
                 icon = Icons.Filled.CloudDownload,
                 title = tr("Premiumize"),
                 subtitle = tr("Processa no cloud e baixa em alta velocidade"),
-                beta = true
+                beta = true,
+                tag = recTag("pm")
             ) { onPick(debridUri, DownloadMethod.PREMIUMIZE) }
         }
         if (alldebridAvailable && debridUri != null) {
@@ -1039,14 +1059,16 @@ private fun DownloadOptionsSheet(
                 icon = Icons.Filled.CloudDownload,
                 title = tr("AllDebrid"),
                 subtitle = tr("Processa no cloud e baixa em alta velocidade"),
-                beta = true
+                beta = true,
+                tag = recTag("ad")
             ) { onPick(debridUri, DownloadMethod.ALLDEBRID) }
         }
         if (torboxAvailable && debridUri != null) {
             DownloadMethodRow(
                 icon = Icons.Filled.CloudDownload,
                 title = tr("TorBox"),
-                subtitle = tr("Processa no cloud e baixa em alta velocidade")
+                subtitle = tr("Processa no cloud e baixa em alta velocidade"),
+                tag = recTag("tb")
             ) { onPick(debridUri, DownloadMethod.TORBOX) }
         }
 
@@ -1080,6 +1102,7 @@ private fun DownloadMethodRow(
     subtitle: String,
     enabled: Boolean = true,
     beta: Boolean = false,
+    tag: String? = null,
     onClick: () -> Unit
 ) {
     Surface(
@@ -1124,6 +1147,23 @@ private fun DownloadMethodRow(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+            if (tag != null) {
+                Box(
+                    Modifier
+                        .background(
+                            MaterialTheme.colorScheme.surfaceContainer,
+                            RoundedCornerShape(6.dp)
+                        )
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        tag,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(Modifier.width(6.dp))
             }
             if (beta) {
                 BetaInfoButton()

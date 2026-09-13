@@ -282,6 +282,8 @@ object AppStore {
         AppLog.i("Store", "Real-Debrid: ${if (key.isBlank()) "chave removida" else "chave definida (${key.trim().length} chars)"}")
         _rdApiKey.value = key.trim()
         save("rdkey.json", key.trim())
+        // recarrega a lista de hosts do RD (tag Recomendado no sheet)
+        gg.hydroid.app.data.api.RdHosts.invalidate()
     }
 
     fun setPremiumizeKey(key: String) {
