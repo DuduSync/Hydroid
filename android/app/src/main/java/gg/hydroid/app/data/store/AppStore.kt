@@ -207,11 +207,14 @@ object AppStore {
     fun addSource(source: DownloadSource) {
         AppLog.i("Store", "fonte adicionada: ${source.name} (${source.url.take(90)})")
         commit("sources.json", (_sources.value + source).distinctBy { it.url }, _sources)
+        // contagens voltam a ser checadas sem precisar reiniciar o app
+        gg.hydroid.app.data.api.RepackFinder.refreshSoon()
     }
 
     fun removeSource(id: String) {
         AppLog.i("Store", "fonte removida: $id")
         commit("sources.json", _sources.value.filter { it.id != id }, _sources)
+        gg.hydroid.app.data.api.RepackFinder.refreshSoon()
     }
 
     fun addToLibrary(game: LibraryGame) {

@@ -978,6 +978,10 @@ private fun DownloadOptionsSheet(
     // o debrid do usuario (cloud costuma ser mais rapido que swarm fraco)
     val httpHost = sheet.uris.firstOrNull { it.startsWith("http") }
         ?.let { runCatching { java.net.URI(it).host ?: "" }.getOrDefault("") } ?: ""
+    // RD suporta esse hoster? (lista oficial; em torrent sempre vale; sem lista, assume que sim)
+    val rdSupportsHost = hasMagnet || rdDomains.isEmpty() || rdDomains.any {
+        httpHost.lowercase().endsWith(it) || httpHost.lowercase().removePrefix("www.") == it
+    }
     val rdRecommended = hasHttp && rdAvailable && rdDomains.isNotEmpty() &&
         rdDomains.any { httpHost.lowercase().endsWith(it) || httpHost.lowercase().removePrefix("www.") == it }
     val magnetDebrid = if (hasMagnet) when {
@@ -1037,7 +1041,8 @@ private fun DownloadOptionsSheet(
         }
 
         // debrids (quando configurados): processam no cloud e cobrem 1fichier/MEGA/etc
-        if (rdAvailable && debridUri != null) {
+        // so mostra o RD quando ele realmente suporta o hoster (ex.: datanodes/gofile nao sao)
+        if (rdAvailable && debridUri != null && rdSupportsHost) {
             DownloadMethodRow(
                 icon = Icons.Filled.CloudDownload,
                 title = tr("Real-Debrid"),

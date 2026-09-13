@@ -11,6 +11,9 @@ import gg.hydroid.app.data.log.AppLog
 import gg.hydroid.app.data.store.AppStore
 import gg.hydroid.app.data.update.UpdateManager
 import gg.hydroid.app.download.DownloadEngine
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class HydroidApp : Application() {
     override fun attachBaseContext(base: Context) {
@@ -40,6 +43,29 @@ class HydroidApp : Application() {
         RepackFinder.warmUp()
         // lista de hosts do Real-Debrid (tag "Recomendado" no sheet sem pular na animacao)
         gg.hydroid.app.data.api.RdHosts.warmUp()
+        // v0.9.10: fontes adicionadas pela loja usavam id "store-" (nem registrado no Hydra
+        // nem tratado como local) e a busca de repacks vinha vazia. Conserta aqui no boot.
+        runCatching {
+            val quebradas = AppStore.sources.value.filter { it.id.startsWith("store-") }
+            if (quebradas.isNotEmpty()) {
+                CoroutineScope(Dispatchers.IO).launch {
+                    for (s in quebradas) {
+                        val reg = runCatching {
+                            gg.hydroid.app.data.api.HydraCloudApi.registerSource(s.url)
+                        }.getOrNull()
+                        if (reg != null) {
+                            AppStore.removeSource(s.id)
+                            AppStore.addSource(reg.copy(name = s.name))
+                            AppLog.i("SourceStore", "fonte da loja migrada pro Hydra: ${s.name} (${reg.id})")
+                        } else {
+                            AppStore.removeSource(s.id)
+                            AppStore.addSource(s.copy(id = "local-${s.url.hashCode()}"))
+                            AppLog.i("SourceStore", "fonte da loja migrada pra local: ${s.name}")
+                        }
+                    }
+                }
+            }
+        }
         // quando a rede volta (ex.: Wi-Fi ligado), solta a fila de downloads
         runCatching {
             val cm = getSystemService(ConnectivityManager::class.java) ?: return@runCatching

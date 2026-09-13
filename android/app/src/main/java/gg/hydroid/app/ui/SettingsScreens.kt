@@ -191,7 +191,7 @@ private fun SettingsHome(onOpen: (SettingsPage) -> Unit) {
         item {
             NavRow(
                 Icons.Filled.Favorite, tr("Créditos"),
-                tr("Hydroid 0.9.9 · fork de estudo do Hydra (MIT)")
+                tr("Hydroid 0.9.99 · fork de estudo do Hydra (MIT)")
             ) { onOpen(SettingsPage.CREDITOS) }
         }
     }
@@ -1577,6 +1577,7 @@ private fun storeStatusColor(status: String): Color = when (status) {
 @Composable
 private fun SourceStorePage(onBack: () -> Unit) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val installed by AppStore.sources.collectAsState()
     var all by remember { mutableStateOf<List<SourceStore.StoreSource>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
@@ -1663,14 +1664,27 @@ private fun SourceStorePage(onBack: () -> Unit) {
                     src = src,
                     added = installed.any { it.url == url },
                     onAdd = {
+                        // entra na hora como local; em background registra no Hydra (id do
+                        // servidor resolve fontes atras de Cloudflare, como hydralinks.cloud)
+                        val localId = "local-${url.hashCode()}"
                         AppStore.addSource(
                             gg.hydroid.app.data.model.DownloadSource(
-                                id = "store-${src.id}",
+                                id = localId,
                                 name = src.title ?: url,
                                 url = url
                             )
                         )
                         Toast.makeText(context, tr("Fonte adicionada"), Toast.LENGTH_SHORT).show()
+                        scope.launch {
+                            val reg = runCatching { HydraCloudApi.registerSource(url) }.getOrNull()
+                            if (reg != null) {
+                                AppStore.removeSource(localId)
+                                AppStore.addSource(reg.copy(name = src.title ?: reg.name))
+                                AppLog.i("SourceStore", "fonte registrada no Hydra: ${reg.name} (${reg.id})")
+                            } else {
+                                AppLog.w("SourceStore", "sem Hydra, fonte fica local: ${src.title}")
+                            }
+                        }
                     }
                 )
             }
@@ -1872,7 +1886,7 @@ private fun CreditosPage(onBack: () -> Unit) {
     SettingsPageScaffold(tr("Créditos"), onBack) {
         SettingsSection(
             icon = Icons.Filled.Favorite,
-            title = tr("Hydroid 0.9.9"),
+            title = tr("Hydroid 0.9.99"),
             subtitle = tr("fork de estudo do Hydra Launcher (MIT)")
         ) {
             Text(

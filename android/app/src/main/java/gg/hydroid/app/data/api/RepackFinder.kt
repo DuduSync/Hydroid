@@ -5,7 +5,9 @@ import gg.hydroid.app.data.model.GameRepack
 import gg.hydroid.app.data.store.AppStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -19,6 +21,21 @@ object RepackFinder {
     val counts: StateFlow<Map<Long, Int>> = _counts
     private val checked = mutableSetOf<Long>()
     private var warmedUp = false
+    private var refreshJob: Job? = null
+
+    // a lista de fontes mudou (adicionou/removeu/registrou): esquece as contagens e
+    // re-checa tudo sozinho (debounce: varias mudancas seguidas viram uma so rodada)
+    fun refreshSoon() {
+        refreshJob?.cancel()
+        refreshJob = scope.launch {
+            delay(1500)
+            synchronized(checked) { checked.clear() }
+            _counts.value = emptyMap()
+            synchronized(this@RepackFinder) { warmedUp = false }
+            AppLog.i("Repacks", "fontes mudaram: re-checando contagens")
+            warmUp()
+        }
+    }
 
     suspend fun find(gameName: String, appId: Long): List<Pair<GameRepack, String>> {
         val sources = AppStore.sources.value
