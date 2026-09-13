@@ -2,8 +2,11 @@
   "versions": [
     {
       "version": "0.9.9",
-      "date": "em breve",
+      "date": "13/09/2026",
       "changes": [
+        "Loja de fontes: explore 70+ fontes da comunidade e adicione com um toque (com avaliação, número de jogos e os hosts que cada uma usa)",
+        "Filtros na loja por tag: Trusted, Safe For Use, Use At Your Own Risk, Classics, Software e NSFW",
+        "Tag \"Recomendada pro Hydroid\": fontes com jogos pré-instalados (extrai e joga, sem instalador) são as ideais pro port, com filtro dedicado",
         "Novidades (changelog) dentro do app, sincronizada direto do GitHub"
       ]
     },
