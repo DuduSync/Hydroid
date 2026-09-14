@@ -15,8 +15,8 @@ android {
         applicationId = "gg.hydroid.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 19
-        versionName = "0.9.99"
+        versionCode = 20
+        versionName = "1.0"
     }
 
     signingConfigs {
@@ -71,5 +71,6 @@ dependencies {
     implementation("org.libtorrent4j:libtorrent4j-android-arm64:2.1.0-39")
     implementation("org.libtorrent4j:libtorrent4j-android-x86_64:2.1.0-39")
     implementation("com.github.junrar:junrar:8.1.1")
+    implementation("net.lingala.zip4j:zip4j:2.11.6")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

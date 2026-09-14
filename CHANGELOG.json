@@ -1,6 +1,19 @@
 {
   "versions": [
     {
+      "version": "1.0",
+      "date": "14/09/2026",
+      "changes": [
+        "Versao 1.0 estavel!",
+        "Correcao do crash ao abrir com internet (a home podia receber o mesmo jogo duas vezes e derrubava o app)",
+        "Extracao de arquivos protegidos por senha (Online-Fix e afins) direto no app",
+        "Apagar remove so o arquivo compactado: a pasta extraida (o jogo) fica no aparelho",
+        "Loja de fontes: o link do catalogo agora e colado por voce (o app nao embute nem divulga link nenhum)",
+        "Novidades (changelog) sempre atualizadas, sem espera de cache",
+        "Ajustes e correcoes de estabilidade no geral"
+      ]
+    },
+    {
       "version": "0.9.99",
       "date": "13/09/2026",
       "changes": [
