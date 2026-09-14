@@ -38,7 +38,7 @@ APK universal assinado (arm64 + x86_64):
 - **Conta Hydra**: login, sincronização da biblioteca e das fontes
 - Perfil da conta: visibilidade do perfil e dos souvenires, presentes na nuvem, bloqueados, segurança e assinatura do Hydra Cloud
 - Fontes de download registradas via **Hydra Cloud** (o servidor do Hydra resolve fontes atrás de Cloudflare automaticamente)
-- **Loja de fontes**: explore 70+ fontes da comunidade e adicione com um toque, com filtros por tag (Trusted, Safe For Use, Classics...) e a tag **Recomendada pro Hydroid** para fontes com jogos **pré-instalados** (extrai e joga, sem instalador)
+- **Fonte por link**: cole a URL do `.json` da fonte que ela é adicionada na hora (sem lista pronta dentro do app)
 
 **Métodos de download**
 
