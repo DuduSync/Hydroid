@@ -59,6 +59,10 @@ object AppStore {
     private val _language = MutableStateFlow("")
     val language: StateFlow<String> = _language
 
+    // link da loja de fontes: quem informa e o usuario (o app nao carrega link de loja)
+    private val _storeUrl = MutableStateFlow("")
+    val storeUrl: StateFlow<String> = _storeUrl
+
     // auto | light | dark | amoled | glass
     private val _theme = MutableStateFlow("auto")
     val theme: StateFlow<String> = _theme
@@ -123,6 +127,7 @@ object AppStore {
         }
         _theme.value = prefs.theme
         _startTab.value = prefs.startTab
+        _storeUrl.value = prefs.storeUrl
     }
 
     @kotlinx.serialization.Serializable
@@ -136,7 +141,8 @@ object AppStore {
         val speedLimitKbps: Int = 0,
         val language: String = "",
         val theme: String = "auto",
-        val startTab: Int = 1
+        val startTab: Int = 1,
+        val storeUrl: String = ""
     )
 
     private fun savePrefs() = save(
@@ -144,9 +150,16 @@ object AppStore {
         Prefs(
             _setupDone.value, _autoExtract.value, _deleteArchive.value, _downloadDir.value,
             _maxConcurrent.value, _wifiOnly.value, _speedLimitKbps.value, _language.value,
-            _theme.value, _startTab.value
+            _theme.value, _startTab.value, _storeUrl.value
         )
     )
+
+    // link da loja de fontes (colado pelo usuario)
+    fun setStoreUrl(url: String) {
+        AppLog.i("Store", "link da loja de fontes=" + if (url.isBlank()) "(vazio)" else url.take(90))
+        _storeUrl.value = url.trim()
+        savePrefs()
+    }
 
     fun setSetupDone(done: Boolean) { AppLog.i("Store", "setup concluido=$done"); _setupDone.value = done; savePrefs() }
 
