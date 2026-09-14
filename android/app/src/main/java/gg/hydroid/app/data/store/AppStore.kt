@@ -97,7 +97,7 @@ object AppStore {
         dir = File(context.filesDir, "hydroid").apply { mkdirs() }
         appContext = context.applicationContext
         _sources.value = load<List<DownloadSource>>("sources.json") ?: emptyList()
-        _library.value = load<List<LibraryGame>>("library.json") ?: emptyList()
+        _library.value = (load<List<LibraryGame>>("library.json") ?: emptyList()).distinctBy { it.appId }
         _collections.value = load<List<GameCollection>>("collections.json") ?: emptyList()
         // terminais e pausados sobrevivem a restart (pausado pode continuar depois)
         val terminal = setOf("concluido", "erro", "pausado")

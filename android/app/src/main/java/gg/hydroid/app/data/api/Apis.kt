@@ -83,7 +83,7 @@ object SteamApi {
                 "new_releases" to r.new_releases?.items.orEmpty(),
                 "specials" to r.specials?.items.orEmpty(),
                 "coming_soon" to r.coming_soon?.items.orEmpty()
-            ).mapValues { (_, v) -> v.filter { it.id > 0 && it.name.isNotBlank() }.take(20) }
+            ).mapValues { (_, v) -> v.filter { it.id > 0 && it.name.isNotBlank() }.distinctBy { it.id }.take(20) }
         }.getOrDefault(emptyMap())
     }
 
