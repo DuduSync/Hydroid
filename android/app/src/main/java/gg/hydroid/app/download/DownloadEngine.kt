@@ -263,9 +263,7 @@ object DownloadEngine {
                     error = tf("Extração falhou: %s", result.exceptionOrNull()?.message)))
                 return@launch
             }
-            val created = ArchiveExtractor.topLevelEntries(archive)
-                .map { File(parent, it) }
-                .filter { it.exists() }
+            val created = result.getOrThrow().map { File(parent, it) }
             if (AppStore.deleteArchive.value) archive.delete()
             val leftover = if (archive.exists()) listOf(archive) else emptyList()
             val current = if (created.size == 1) created.first() else parent
@@ -309,9 +307,8 @@ object DownloadEngine {
                         return@launch
                     }
                     // guarda SO o que este download criou (o Apagar nao pode levar a pasta toda)
-                    val created = ArchiveExtractor.topLevelEntries(archive)
-                        .map { File(parent, it) }
-                        .filter { it.exists() }
+                    // (o extrator devolve os nomes do primeiro nivel ja extraidos)
+                    val created = result.getOrThrow().map { File(parent, it) }
                     AppLog.i("Download", "extraido: ${created.size} item(s) de ${archive.name} em ${parent.name}")
                     if (AppStore.deleteArchive.value) archive.delete()
                     val leftover = if (archive.exists()) listOf(archive) else emptyList()
