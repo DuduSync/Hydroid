@@ -20,7 +20,7 @@
 
 APK universal assinado (arm64 + x86_64):
 
-➡️ [**Hydroid v0.9.99 - Releases**](https://github.com/DuduSync/Hydroid/releases/latest)
+➡️ [**Hydroid v1.0 - Releases**](https://github.com/DuduSync/Hydroid/releases/latest)
 
 ## Funcionalidades
 
@@ -58,7 +58,7 @@ APK universal assinado (arm64 + x86_64):
 - **Só baixar no Wi-Fi** e **limite de velocidade** por download
 - Cancelar um download apaga o arquivo parcial (sem lixo no armazenamento)
 - **Uma notificação por download** (progresso individual) além do resumo; toque abre o app, e há aviso quando as notificações estão desativadas no sistema
-- Pós-download: **extração automática** de `.zip`/`.rar`, **abrir pasta**, extrair manualmente e apagar (removendo só o que aquele download criou)
+- Pós-download: **extração automática** de `.zip`/`.rar`, **inclusive arquivos com senha** (Online-Fix e afins), **abrir pasta**, extrair manualmente e apagar (o Apagar remove só o arquivo compactado, a pasta extraída fica; sem compactado, remove o que aquele download criou)
 - Pasta de download escolhida por você (via SAF), configurável a qualquer momento
 
 **Biblioteca e personalização**
